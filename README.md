@@ -195,6 +195,35 @@ The architecture should support:
 - Notifications/reminders
 - Widget size variations (1x1, 2x1, 2x2)
 
+#### Multiple Tasks Consideration (Post-MVP)
+
+**Question:** How should users track multiple different actions?
+
+**Option A: Multiple Widget Instances** (Recommended initial approach)
+- User adds multiple BigButton widgets to home screen
+- Each widget instance tracks a different action independently
+- Pros: Simpler architecture, standard Android pattern, flexible positioning
+- Cons: Takes more home screen space
+- Example: One widget for "Water plants", another for "Take vitamin"
+
+**Option B: Single Widget with Task Switcher**
+- One widget that can switch between multiple tasks (swipe/dropdown)
+- Pros: Space-efficient
+- Cons: More complex UI, can only view one task at a time
+- Requires task switching mechanism on widget
+
+**Option C: Hybrid Approach**
+- Start with Option A (multiple instances)
+- Later add Option B as an alternative mode
+
+**Task Labels:**
+If supporting multiple widgets/tasks, consider adding optional task labels:
+- Display location options: Top of widget, bottom of widget, or inside button
+- User setting to show/hide labels
+- Requires design adjustment to accommodate text
+
+**Recommendation:** Implement Option A first (multiple widget instances), evaluate user feedback, then consider adding Option B or task labels based on need.
+
 ## User Stories
 
 ### As a user, I want to...
@@ -207,22 +236,82 @@ The architecture should support:
 6. See a calendar showing which periods I completed the action
 7. Set what time of day the period resets (e.g., 3 AM instead of midnight)
 
-## Design Mockup Notes
+## Design Specification
 
-### Widget States
+See `bigbutton_mockup.png` for visual reference.
 
-**"Do" State:**
-- Large button with text "Do" or custom action label
-- Neutral color (gray/blue)
-- Small settings gear icon in top-right corner
+### Overall Widget Layout
 
-**"Done" State:**
-- Same button with text "Done" or checkmark
-- Success color (green)
-- Settings icon remains visible
+- **Shape**: Rounded rectangle with soft corners (standard Android widget proportions)
+- **Background**: Warm beige/tan color (#D4C5A9 approx.) with subtle texture
+- **Dimensions**: Designed for 2x1 widget size (approximately 4:2 aspect ratio)
+- **Style**: Skeuomorphic design with tactile, 3D appearance
 
-### Accessibility
+### Main Button Design
 
-- Button must have sufficient contrast ratio
-- Text size should be readable at standard widget size
-- Settings icon should be at least 48x48dp touch target
+**Visual Characteristics:**
+- **Shape**: Large circular button centered in widget
+- **Border**: White ring around the circle for definition
+- **Depth**: Shadow/elevation effect making button appear raised and pressable
+- **Size**: Button should occupy approximately 60-70% of widget height
+- **Text**: Bold, friendly sans-serif font in white for maximum contrast
+
+**"Do" State (Default):**
+- Button color: Soft red (#E57373 or similar warm red)
+- Text: "Do" or "Do it!"
+- Visual feel: Gentle prompt to take action
+
+**"Done" State (Active):**
+- Button color: Soft green (#81C784 or similar success green)
+- Text: "Done!" (with exclamation for positive reinforcement)
+- Visual feel: Accomplished, celebratory
+
+### Settings Icon
+
+- **Position**: Bottom-right corner of widget
+- **Size**: Small, approximately 24-32dp (visible but unobtrusive)
+- **Color**: Brownish/tan matching background theme, slightly darker for visibility
+- **Style**: Standard gear/cog icon
+- **Touch Target**: Minimum 48x48dp for accessibility (padding around visible icon)
+
+### Color Palette
+
+```
+Background:     #D4C5A9 (warm beige/tan)
+Button - Do:    #E57373 (soft red)
+Button - Done:  #81C784 (soft green)
+Button Border:  #FFFFFF (white)
+Button Text:    #FFFFFF (white)
+Settings Icon:  #8B7355 (muted brown)
+Shadow/Depth:   rgba(0, 0, 0, 0.2) for elevation effects
+```
+
+### Typography
+
+- **Button Text**: Large, bold sans-serif (e.g., Roboto Bold)
+- **Size**: Approximately 24-32sp (scaled for button size)
+- **Weight**: Bold/700
+- **Case**: Title case ("Done!") for friendliness
+
+### Visual Effects
+
+- **Button Shadow**: Subtle drop shadow below button for depth
+- **Button Highlight**: Optional subtle highlight on top edge for 3D effect
+- **Pressed State**: Button should appear to depress slightly when tapped (future interactive version)
+
+### Accessibility Requirements
+
+- **Contrast Ratio**: Minimum 4.5:1 for text on button (white on green/red exceeds this)
+- **Touch Targets**: Button minimum 48x48dp, settings icon minimum 48x48dp
+- **Content Description**: Proper accessibility labels for screen readers
+- **State Indication**: Color should not be the only indicator (text changes "Do" → "Done")
+
+### Responsive Considerations
+
+- Widget should scale proportionally for different screen densities
+- Maintain aspect ratio and relative sizing of elements
+- Text should remain readable at smallest supported widget size
+
+### MVP Scope Note
+
+For MVP, the design assumes a **single widget instance** tracking one task. Multiple tasks/widgets and task labeling are future considerations (see below).
