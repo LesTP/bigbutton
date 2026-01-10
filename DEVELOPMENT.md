@@ -85,7 +85,7 @@ lastChanged: Long (epoch milliseconds)
 | Settings isolation | Tap settings icon | Nothing happens |
 | Fresh install | Install app, add widget | Shows Do state |
 
-### Phase 3: Settings & Configuration (Next)
+### Phase 3: Settings & Configuration ✅ Complete
 User-configurable reset periods. Broken into sub-phases for incremental delivery.
 
 ---
@@ -230,7 +230,7 @@ periodDays: Int (default: 1)
 
 ---
 
-#### Phase 3c: Reset Time Selector
+#### Phase 3c: Reset Time Selector ✅ Complete
 
 **Deliverables:**
 - Reset time configuration (hour of day)
@@ -247,20 +247,13 @@ periodDays: Int (default: 1)
 | P3c.4 | Reset time persists across app restarts |
 | P3c.5 | Display shows selected time in 12h or 24h format (follow system) |
 
-**Decisions Needed:**
+**Decisions Made:**
 
-| Decision | Options | Recommendation |
-|----------|---------|----------------|
-| Time granularity | Hour only / Hour + minute | Hour only - simpler, sufficient |
-| Time picker UI | Android TimePicker / Custom dropdown | Android TimePicker - familiar UX |
-| Display format | 12h / 24h / System | System preference |
-
-**Implementation Plan:**
-1. Add reset time key to `BigButtonStateDefinition`
-2. Create time picker trigger button showing current time
-3. Implement time picker dialog
-4. Save selected time to DataStore
-5. Display formatted time in settings
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Time granularity | Hour only | Simpler, sufficient for habit reset |
+| Time picker UI | Android TimePickerDialog | Familiar UX, less code |
+| Display format | System preference | Respects user's 12h/24h setting |
 
 **State Schema Addition:**
 ```
@@ -278,7 +271,7 @@ resetHour: Int (default: 4, range: 0-23)
 
 ---
 
-### Phase 4: Automatic Reset
+### Phase 4: Automatic Reset (Next)
 Background scheduling for period resets.
 
 **Deliverables:**
@@ -603,6 +596,38 @@ Verified all test cases:
 
 ---
 
+### Phase 3c: Reset Time Selector ✅
+
+#### Step 3c.1: State Schema Update
+**Date:** 2026-01-10
+
+Updated `BigButtonStateDefinition.kt`:
+- Added `RESET_HOUR` key (Int, default: 4)
+- Added `DEFAULT_RESET_HOUR = 4` constant
+
+#### Step 3c.2: Time Picker UI
+**Date:** 2026-01-10
+
+Updated `ui/SettingsScreen.kt`:
+- Added `formatHour()` helper function for 12h/24h time formatting
+- Added "Reset Time" section with OutlinedButton showing current time
+- Tapping button opens Android TimePickerDialog
+- Selection saves to DataStore immediately
+- Respects system 12h/24h preference via `DateFormat.is24HourFormat()`
+
+#### Step 3c.3: Testing
+**Date:** 2026-01-10
+
+Verified all test cases:
+- ✅ Default shows "4:00 AM"
+- ✅ Time picker opens on button tap
+- ✅ Time selection saves and persists after restart
+- ✅ Midnight displays as "12:00 AM"
+- ✅ Noon displays as "12:00 PM"
+- ✅ Cancel picker leaves time unchanged
+
+---
+
 ## Issues & Resolutions
 
 ### Issue #1: Missing Launcher Icon Resource
@@ -627,4 +652,4 @@ For each increment:
 
 ---
 
-Last Updated: 2026-01-10 (Phase 3b complete)
+Last Updated: 2026-01-10 (Phase 3 complete)
