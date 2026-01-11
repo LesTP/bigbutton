@@ -1,0 +1,70 @@
+This repo is developed via “vibe coding” with an LLM that **starts cold each session**. Documentation must provide enough context of intent, constraints, and decisions.
+
+* You have no memory outside this repo.
+* If something is ambiguous, ASK (don’t guess).
+* Prefer clarity over speed.
+
+~ * ~
+
+Every project has the following three-file documentation structure:
+- DEVPLAN.md: Product vision, roadmap, requirements, design specs, decisions. Updated before each dev iteration.
+- DEVLOG.md: Implementation history, issues encountered, lessons learned. Updated after each dev iteration.
+- README.md: High-level project overview with links to both DEV docs. Updated upon major direction shifts.
+
+README opens with the cold start summary of 5-8 bullet points: 
+* What this is (e.g This is a personal tool to explore X)
+* Current state [what works / what’s broken] (e.g. Core architecture is settled; avoid redesign)
+* Current focus (e.g. understand the data model and constraints)
+* Key constraints + gotchas (e.g. Several TODOs are placeholders, not bugs)
+Update the README only when project context shifts in a potentially misleading way (scope, focus, or core assumptions), not for routine code changes.
+
+
+When a decision is needed, present options clearly, using this template:
+
+```
+D-#: [Decision Title]
+Date: YYYY-MM-DD
+Status: Open / Closed
+
+Decision:
+Rationale:
+Trade-offs:
+Revisit if:
+```
+
+Rule: once marked **Closed**, don’t reopen unless new evidence appears.
+
+
+~ * ~
+
+The session operates in one of three modes:
+- Discuss
+- Code/debug
+- Review
+
+- Discuss: involves documentation updates but NO code changes at all. Every iteration starts with a discuss session. In making plans, prioritize the simplest solutions possible. Always check existing architecture to see if elements can be used/extended. Preserve existing architecture unless there’s a clear reason to change it; if changing, document using decision template. Reuse existing structures/functions/names whenever possible. Do not invent variable names, APIs, schemas, or file structures. If context is missing, ask before proceeding. Consider and discuss edge cases, document decisions.
+
+- Code/debug: are distinct but the model will switch between them as needed in the course of the session. Code: implement the plan made in the discuss session for this iteration. Debug: propose specific testable hypothesis, only make code changes after testing.
+
+- Review: the goal here is to improve existing code, not to write anything new. Priority #1 is to preserve existing functionality. Priority #2 is to optimize and simplify the code. For trade-offs between performance and simplicity, clarify explicitly by following the decision template. The outcome should ideally be less and simpler code than what we started with; more complexity is only okay if it results in notable performance improvement. Confirm architecture alignment (we didn’t drift). Doc sync: ensure docs are up to date, make a pass to remove redundancies.
+
+~ * ~
+
+Every project proceeds as follows:
+
+- Discuss the overall goal of the project; write use cases, make architecture and tool choices, determine MVP, define specific features for this dev cycle and put everything else into "Future plans", document in the README and DEVPLAN. Break into distinct individual features that can be added in separate sequential steps called Phases. 
+
+- Actual dev phases, one phase per feature, structured as follows:
+"Phase #n, feature" (e.g. Phase 5, add item to favorites)
+Discuss: determine the scope of this phase and specific outcomes. Break into smallest possible steps, to be implemented and tested individually (e.g. Phase 5a, create a favorites page; Phase 5b, add "fav_bool" field to the item table).
+
+Then individual steps (e.g. Phase 5b: add fav_bool field): 
+Discuss: determine specific changes, tech specs, files to be changed/added. Identify and document choices, discuss with user and document decisions using template. Outline the testing procedures. Update DEVPLAN before coding.
+Code/debug.
+Update DEVLOG upon completion.
+Commit.
+
+After a phase is completed, review.
+Update DEVLOG with any changes.
+Make one more pass to clean up documentation (remove redundancies, fix drift). 
+Commit.

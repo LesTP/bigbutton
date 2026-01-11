@@ -67,11 +67,8 @@ bigbutton/
 
 ## Documentation
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for:
-- Product vision and roadmap
-- Design specifications
-- Architecture decisions
-- Development progress log
+- **[DEVPLAN.md](DEVPLAN.md)** - Product vision, roadmap, requirements, and design specifications
+- **[DEVLOG.md](DEVLOG.md)** - Implementation history, issues encountered, and lessons learned
 
 ## License
 

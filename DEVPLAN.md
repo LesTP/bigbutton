@@ -1,0 +1,447 @@
+# BigButton Development Plan
+
+This document contains the product vision, roadmap, requirements, and design specifications for BigButton.
+
+For implementation history and issue resolutions, see [DEVLOG.md](DEVLOG.md).
+
+---
+
+## Product Vision
+
+BigButton is a habit tracking app that helps users track whether they've performed a specific action within a defined time period. Examples:
+- "Watered the plants this week"
+- "Took a vitamin today"
+- "Called mom this month"
+
+The app focuses on simplicity with a single-action interface presented as a home screen widget.
+
+---
+
+## Roadmap
+
+### Phase 1: MVP Visual Design ✅ Complete
+Non-interactive widget showing button and settings icon.
+
+**Deliverables:**
+- Widget appears on home screen
+- Button displays "Do" state with proper styling
+- Settings icon visible in corner
+- Visual design matches mockup
+
+### Phase 2: Basic Interactivity ✅ Complete
+Tap functionality and state persistence.
+
+**Deliverables:**
+- Tap button to mark action as done (Do → Done)
+- State persists across device restarts
+- Widget updates immediately on tap
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P2.1 | Tapping button changes state from Do → Done |
+| P2.2 | Tapping button when already Done does nothing (no toggle back) |
+| P2.3 | Reset (Done → Do) only available via settings (Phase 3) |
+| P2.4 | State persists across widget updates |
+| P2.5 | State persists across app/device restarts |
+| P2.6 | Widget UI updates immediately on tap |
+| P2.7 | Settings icon does not trigger state change |
+
+**Design Rationale:** One-way toggle (Do→Done only) prevents accidental resets. Users must intentionally reset via settings, ensuring completed actions aren't accidentally unmarked.
+
+**Decisions Made:**
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| State storage | PreferencesGlanceStateDefinition | Built for Glance, simple, sufficient |
+| Click target | Button only | Settings icon reserved for Phase 3 |
+| State schema | isDone + lastChanged timestamp | Timestamp needed for Phase 4 auto-reset |
+
+**State Schema:**
+```
+isDone: Boolean (default: false)
+lastChanged: Long (epoch milliseconds)
+```
+
+### Phase 3: Settings & Configuration ✅ Complete
+User-configurable reset periods. Broken into sub-phases for incremental delivery.
+
+---
+
+#### Phase 3a: Settings Activity + Manual Reset ✅ Complete
+
+**Deliverables:**
+- Settings activity launched from settings icon tap
+- Manual reset button to change Done → Do
+- Basic settings UI scaffold
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P3a.1 | Tapping settings icon opens settings activity |
+| P3a.2 | Settings activity displays "Reset" button |
+| P3a.3 | Tapping Reset button sets widget to "Do" state |
+| P3a.4 | Reset button only enabled when widget is in "Done" state |
+| P3a.5 | After reset, user returns to home screen and sees updated widget |
+| P3a.6 | Settings activity has proper back navigation |
+
+**Decisions Made:**
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Activity vs Dialog | Activity | Room for future settings, standard pattern |
+| UI Framework | Compose | Consistent with app |
+| Navigation after reset | Auto-close | Confirms action, fewer steps |
+| Activity approach | Repurpose MainActivity | Already exists, will become main app hub |
+
+---
+
+#### Phase 3b: Period Selector ✅ Complete
+
+**Deliverables:**
+- Period configuration in settings
+- Presets: Daily, Weekly, Monthly
+- Custom option (1-90 days)
+- Period saved to DataStore
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P3b.1 | Settings shows period selector below reset section |
+| P3b.2 | Preset options: Daily (1 day), Weekly (7 days), Monthly (30 days) |
+| P3b.3 | Custom option allows entering number of days (1-90) |
+| P3b.4 | Selected period persists across app restarts |
+| P3b.5 | Default period is 1 day (Daily) if not configured |
+| P3b.6 | Period change takes effect on next reset cycle |
+
+**Decisions Made:**
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| UI component | Radio list with 4 options | Clear hierarchy, all options visible |
+| Custom input | Inline number field (1-90) | Always visible, no hidden state |
+| Period storage | Same DataStore | Single source of truth |
+| Max custom days | 90 | Practical limit, 365 unnecessary |
+
+---
+
+#### Phase 3c: Reset Time Selector ✅ Complete
+
+**Deliverables:**
+- Reset time configuration (hour of day)
+- Time picker UI
+- Reset time saved to DataStore
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P3c.1 | Settings shows reset time selector |
+| P3c.2 | Time picker allows selecting hour (and optionally minute) |
+| P3c.3 | Default reset time is 4:00 AM |
+| P3c.4 | Reset time persists across app restarts |
+| P3c.5 | Display shows selected time in 12h or 24h format (follow system) |
+
+---
+
+### Phase 4: Automatic Reset ✅ Complete
+Background scheduling for period resets.
+
+**Deliverables:**
+- Widget automatically resets to "Do" when period elapses
+- AlarmManager integration for exact-time scheduled resets
+- Fallback check on widget load/interaction
+- Reliable reset even if device was off
+- Reset time supports hour + minute granularity
+
+**Dependencies:** Phase 3b (period) and Phase 3c (reset time) - ✅ Complete
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P4.1 | Widget resets to "Do" at configured reset time after period elapses |
+| P4.2 | Reset occurs even if device was off during scheduled time |
+| P4.3 | Widget shows accurate state immediately when viewed/tapped |
+| P4.4 | Reset respects local timezone |
+| P4.5 | Period/time changes apply correctly to next reset |
+
+**Decisions Made:**
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Scheduling mechanism | AlarmManager with setExactAndAllowWhileIdle() | Exact timing even in Doze mode |
+| Reset logic | Hybrid (scheduled alarm + on-load check) | Best reliability |
+| Timezone handling | Follow local time | More natural for habit tracking |
+| Time granularity | Hour + Minute | More flexible, easier to test |
+
+**Important Notes:**
+- On Android 12+ (API 31+), the `SCHEDULE_EXACT_ALARM` permission requires **manual user approval** in system settings
+- Without this permission, exact alarms will not fire and automatic reset will not work
+
+---
+
+### Phase 4.1: Tab Navigation & Info Screen ✅ Complete
+
+Add tab-based navigation to MainActivity with three tabs: Settings, Calendar, and Info.
+
+**Deliverables:**
+- Tab navigation in MainActivity (Settings | Calendar | Info)
+- Info screen with About section and permissions guidance
+- Calendar tab placeholder (content in Phase 5)
+- Settings remains the default tab
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P4.1.1 | MainActivity displays three tabs: Settings, Calendar, Info |
+| P4.1.2 | Settings tab is selected by default on app open |
+| P4.1.3 | Tab selection persists during session |
+| P4.1.4 | Info tab displays app name, version, and author |
+| P4.1.5 | Info tab includes permissions guidance for Android 12+ |
+| P4.1.6 | Calendar tab shows placeholder text (implemented in Phase 5) |
+
+---
+
+### Phase 5: History & Calendar
+Track completion history over time with a visual calendar.
+
+**Deliverables:**
+- Continuously scrollable calendar view
+- Color-coded days: green (completed), red (missed), grey (in progress)
+- Room database for historical data storage
+- Reset/erase history option in settings
+
+**Dependencies:** Phase 4 (Automatic Reset) - ✅ Complete
+
+See `calendar_mockup.png` for visual reference.
+
+---
+
+#### Phase 5 Design Specification
+
+##### Core Concept
+
+The calendar displays **per-day completion status** based on the period configuration:
+- **Daily period:** Each day is independently green/red based on whether user pressed Done that day
+- **Multi-day period (e.g., 3 days):** All days in the period share the same color based on whether user pressed Done at any point during that period
+
+**Key principle:** Status is only "locked in" when a period **ends**. The current in-progress period shows grey until it completes.
+
+##### Data Model
+
+**Storage Strategy:**
+- **DataStore (existing):** Widget state and configuration (isDone, periodDays, resetHour, etc.)
+- **Room Database (new):** Historical completion data
+
+**Room Entities:**
+
+```kotlin
+@Entity(tableName = "completion_events")
+data class CompletionEvent(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val timestamp: Long,  // epoch millis when user pressed "Done"
+    val periodDays: Int   // period setting at time of completion (for audit)
+)
+
+@Entity(tableName = "finalized_days")
+data class FinalizedDay(
+    @PrimaryKey val date: String,  // "2026-01-15" (LocalDate ISO format)
+    val completed: Boolean         // true = done (green), false = missed (red)
+)
+
+@Entity(tableName = "tracking_metadata")
+data class TrackingMetadata(
+    @PrimaryKey val key: String,
+    val value: String
+)
+// Keys: "tracking_start_date", "last_finalized_date"
+```
+
+##### Manual Reset Behavior
+
+**Key principle:** Manual reset during the current period acts as an "undo" for accidental presses.
+
+When user manually resets (via Settings):
+1. Widget state set to `isDone = false`
+2. **Delete all `CompletionEvent` records from the current period**
+3. This allows the period to end as "missed" (red) if user doesn't press Done again
+
+| Action | Effect on Widget | Effect on History |
+|--------|------------------|-------------------|
+| Press Done | Shows "Done!" | CompletionEvent recorded |
+| Manual reset (same period) | Shows "Do" | CompletionEvent deleted |
+| Manual reset (after period ended) | Shows "Do" | Past finalization unchanged |
+
+##### Period Change Handling
+
+When user changes period length in settings:
+1. **Finalized days are immutable** - past `FinalizedDay` records never change
+2. **Current period is abandoned** - unfinalized days remain unfinalized (show as transparent/no-data)
+3. **New periods start from today** - fresh start with new period length
+
+**Rationale:** Abandoned periods are not "failed" - the user changed the rules mid-game. Showing them as "no data" is more accurate than marking them red.
+
+##### FinalizedDay Immutability
+
+Use `INSERT ... ON CONFLICT IGNORE` to ensure finalized days can never be overwritten.
+
+##### Edge Cases
+
+| Scenario | Behavior |
+|----------|----------|
+| App installed, no widget added | No tracking starts |
+| Widget added, never pressed | Tracking starts on first press |
+| Manual reset during period | Deletes completion events, allows "undo" |
+| Manual reset after period ended | Widget resets, history unchanged |
+| Period shortened (e.g., 7→1 day) | Abandoned period days show as no-data (transparent) |
+| Period lengthened (e.g., 1→7 day) | Past finalized days unchanged, new period starts |
+
+---
+
+#### Phase 5 Requirements
+
+| ID | Requirement |
+|----|-------------|
+| P5.1 | Calendar view displays scrollable history of tracked days |
+| P5.2 | Completed periods show as green |
+| P5.3 | Missed periods show as red |
+| P5.4 | Current in-progress period shows as grey |
+| P5.5 | Days before tracking started show no color |
+| P5.6 | Future days show no color |
+| P5.7 | Multi-day periods color all days in the period identically |
+| P5.8 | Period changes do not affect past finalized data |
+| P5.9 | "Clear History" option in settings erases all tracking data |
+| P5.10 | Calendar scrolls continuously (not paginated by month) |
+| P5.11 | Month headers appear inline during scroll |
+| P5.12 | Historical data persists across app restarts |
+| P5.13 | Completion events are recorded when user presses "Done" |
+| P5.14 | Period finalization occurs when reset alarm fires |
+
+---
+
+#### Phase 5 Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Storage for history | Room database | Structured queries, scales well |
+| Day status storage | Per-day records (FinalizedDay) | Fast rendering, handles period changes gracefully |
+| Period boundary anchor | Tracking start date | Predictable, user-controlled |
+| Current period display | Grey color | Prevents gaming; status locked only when period ends |
+| Calendar scroll style | Continuous vertical | Handles periods spanning month boundaries naturally |
+| Past data on period change | Immutable | Simplifies logic, preserves historical accuracy |
+| Tracking start trigger | First "Done" press | Natural starting point for habit tracking |
+
+---
+
+#### Phase 5 Sub-phases
+
+- **Phase 5a:** Room Database Setup
+- **Phase 5b:** Completion Event Recording & Manual Reset
+- **Phase 5c:** Period Finalization
+- **Phase 5d:** Calendar UI - Basic
+- **Phase 5e:** Calendar UI - Polish
+- **Phase 5f:** Clear History
+
+See detailed technical TODOs in each sub-phase section of the original planning documents.
+
+---
+
+### Future Enhancements
+- Multiple widget instances for different habits
+- Action labels on widgets ("Water plants")
+- Notifications/reminders
+- Data export/import
+- Widget size variations (2x1, 2x2)
+
+---
+
+## User Stories
+
+As a user, I want to:
+
+1. See a large button on my home screen so I can quickly track my daily/weekly action
+2. Tap the button to mark my action as complete for the current period
+3. Have the button automatically reset after the configured time period
+4. Configure how often the button resets (daily, weekly, custom)
+5. Manually reset the button if I tap it by accident
+6. See a calendar showing which periods I completed the action
+7. Set what time of day the period resets (e.g., 3 AM instead of midnight)
+
+---
+
+## Design Specification
+
+See `bigbutton_mockup.png` for visual reference.
+
+### Widget Layout
+- **Size:** 1x1 (57x57dp minimum)
+- **Background:** Warm beige (#D4C5A9)
+- **Style:** Skeuomorphic with 3D appearance
+
+### Button
+- **Size:** 52dp circular, centered
+- **Border:** 60dp white ring (4dp border width)
+- **Gradient:** Radial, lighter center (centerY: 0.4) to darker edges
+
+| State | Center Color | Edge Color | Text |
+|-------|--------------|------------|------|
+| Do    | #EF8A8A      | #D45A5A    | "Do" |
+| Done  | #9CCC9C      | #5DA55D    | "Done!" |
+
+### Typography
+- **Font:** Roboto Bold
+- **Size:** 18sp
+- **Color:** White (#FFFFFF)
+
+### Settings Icon
+- **Position:** Bottom-right, 8dp padding
+- **Size:** 16dp
+- **Color:** #8B7355 at 70% opacity
+
+### Accessibility
+- Contrast ratio exceeds 4.5:1 (white on red/green)
+- Text changes with state (not color-only indication)
+- Content descriptions for screen readers
+
+---
+
+## Architecture Decisions
+
+### Jetpack Compose for UI
+**Date:** 2026-01-07
+
+**Decision:** Use Jetpack Compose instead of XML layouts.
+
+**Rationale:**
+- Modern, declarative UI toolkit
+- Easier to maintain and iterate
+- Better preview support
+
+### Jetpack Glance for Widget
+**Date:** 2026-01-09
+
+**Decision:** Use Glance instead of traditional RemoteViews.
+
+**Rationale:**
+- Aligns with Compose architecture
+- Cleaner, more maintainable code
+- Modern API with active development
+
+**Trade-off:** Required minSdk 26 (was 24), drops ~2-3% of oldest devices.
+
+### State Persistence
+**Date:** 2026-01-09
+
+**Decision:** Use PreferencesGlanceStateDefinition (Glance's built-in Preferences-backed state).
+
+**Rationale:**
+- Designed specifically for Glance widgets
+- Simple API, minimal boilerplate
+- Sufficient for current needs (isDone + timestamp)
+
+**Future Migration:** Will migrate to Room database when implementing Phase 5 (History & Calendar).
