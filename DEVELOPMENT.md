@@ -408,17 +408,919 @@ resetMinute: Int (0-59) - NEW
 
 ---
 
-### Phase 5: History & Calendar
-Track completion history over time.
+### Phase 4.1: Tab Navigation & Info Screen
+
+Add tab-based navigation to MainActivity with three tabs: Settings, Calendar, and Info.
 
 **Deliverables:**
-- Calendar view showing historical data
-- Green indicators for completed periods
-- Red/empty for missed periods
-- Scrollable history
+- Tab navigation in MainActivity (Settings | Calendar | Info)
+- Info screen with About section and permissions guidance
+- Calendar tab placeholder (content in Phase 5)
+- Settings remains the default tab
+
+**Dependencies:** Phase 4 (Automatic Reset) - ✅ Complete
+
+---
+
+#### Phase 4.1 Requirements
+
+| ID | Requirement |
+|----|-------------|
+| P4.1.1 | MainActivity displays three tabs: Settings, Calendar, Info |
+| P4.1.2 | Settings tab is selected by default on app open |
+| P4.1.3 | Tab selection persists during session (survives rotation) |
+| P4.1.4 | Info tab displays app name, version, and author |
+| P4.1.5 | Info tab includes permissions guidance for Android 12+ |
+| P4.1.6 | Calendar tab shows placeholder text (implemented in Phase 5) |
+
+---
+
+#### Phase 4.1 Design
+
+**Tab Layout:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  BigButton                                                  │
+├───────────────┬───────────────┬─────────────────────────────┤
+│   Settings    │   Calendar    │    Info                     │
+│   (active)    │               │                             │
+├───────────────┴───────────────┴─────────────────────────────┤
+│                                                             │
+│  [Current Settings Screen content]                          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Info Screen Content:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  BigButton                                                  │
+│  Version 1.0                                                │
+│                                                             │
+│  A simple habit tracking widget.                            │
+│                                                             │
+│  ─────────────────────────────────────────────              │
+│                                                             │
+│  ⚠️  Permissions                                            │
+│                                                             │
+│  For automatic reset to work on Android 12+,                │
+│  you need to enable "Alarms & reminders" permission:        │
+│                                                             │
+│  Settings → Apps → BigButton → Alarms & reminders           │
+│                                                             │
+│  [Open App Settings]  ← button to open system settings      │
+│                                                             │
+│  ─────────────────────────────────────────────              │
+│                                                             │
+│  Made with ♥ by [Your Name]                                 │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Calendar Tab Placeholder:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│              📅                                             │
+│                                                             │
+│         Calendar coming soon                                │
+│                                                             │
+│    Track your completion history over time.                 │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### Phase 4.1 Technical TODOs
+
+1. **Update `MainActivity.kt`:**
+   - Add `TabRow` or `NavigationBar` with three tabs
+   - Track selected tab with `rememberSaveable` (survives rotation)
+   - Conditionally render content based on selected tab
+   - Default to Settings tab (index 0)
+
+2. **Create `ui/InfoScreen.kt`:**
+   - App name and version (read from BuildConfig)
+   - Brief description
+   - Permissions section with:
+     - Explanation of alarm permission requirement
+     - "Open App Settings" button using `Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)`
+   - Made by / credits section
+
+3. **Create `ui/CalendarScreen.kt` (placeholder):**
+   - Simple centered text: "Calendar coming soon"
+   - Icon or illustration (optional)
+   - Brief description of upcoming feature
+
+4. **Refactor `ui/SettingsScreen.kt`:**
+   - Ensure it works as a tab content (no Scaffold of its own)
+   - Move any top-level app bar to MainActivity if needed
+
+**Files to Create:**
+- `ui/InfoScreen.kt`
+- `ui/CalendarScreen.kt` (placeholder)
+
+**Files to Modify:**
+- `MainActivity.kt` (add tab navigation)
+- `ui/SettingsScreen.kt` (ensure works as tab content)
+
+---
+
+#### Phase 4.1 Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Tab style | Top tabs (TabRow) | Standard Material pattern, fits 3 tabs well |
+| Default tab | Settings | Most common action, matches current behavior |
+| Tab state | rememberSaveable | Survives configuration changes |
+| Permission button | Opens system app settings | Direct path to enable alarms |
+
+---
+
+#### Phase 4.1 Testing Plan
+
+| Test | Steps | Expected Result |
+|------|-------|-----------------|
+| Default tab | Open app | Settings tab selected |
+| Tab switching | Tap Calendar tab | Calendar placeholder shown |
+| Tab switching | Tap Info tab | Info screen shown |
+| Tab persistence | Rotate device | Same tab stays selected |
+| Info content | View Info tab | Shows version, permissions, credits |
+| Permission button | Tap "Open App Settings" | System settings opens for BigButton |
+| Settings functionality | Use Settings tab | All existing features work |
+
+---
+
+### Phase 5: History & Calendar
+Track completion history over time with a visual calendar.
+
+**Deliverables:**
+- Continuously scrollable calendar view
+- Color-coded days: green (completed), red (missed), grey (in progress)
+- Room database for historical data storage
+- Reset/erase history option in settings
+
+**Dependencies:** Phase 4 (Automatic Reset) - ✅ Complete
+
+See `calendar_mockup.png` for visual reference.
+
+---
+
+#### Phase 5 Design Specification
+
+##### Core Concept
+
+The calendar displays **per-day completion status** based on the period configuration:
+- **Daily period:** Each day is independently green/red based on whether user pressed Done that day
+- **Multi-day period (e.g., 3 days):** All days in the period share the same color based on whether user pressed Done at any point during that period
+
+**Key principle:** Status is only "locked in" when a period **ends**. The current in-progress period shows grey until it completes.
+
+##### Data Model
+
+**Storage Strategy:**
+- **DataStore (existing):** Widget state and configuration (isDone, periodDays, resetHour, etc.)
+- **Room Database (new):** Historical completion data
+
+**Room Entities:**
+
+```kotlin
+@Entity(tableName = "completion_events")
+data class CompletionEvent(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val timestamp: Long,  // epoch millis when user pressed "Done"
+    val periodDays: Int   // period setting at time of completion (for audit)
+)
+
+@Entity(tableName = "finalized_days")
+data class FinalizedDay(
+    @PrimaryKey val date: String,  // "2026-01-15" (LocalDate ISO format)
+    val completed: Boolean         // true = done (green), false = missed (red)
+)
+
+@Entity(tableName = "tracking_metadata")
+data class TrackingMetadata(
+    @PrimaryKey val key: String,
+    val value: String
+)
+// Keys: "tracking_start_date", "last_finalized_date"
+```
+
+**Why this structure:**
+- `CompletionEvent`: Audit trail of every "Done" press, enables future analytics
+- `FinalizedDay`: Pre-computed day status for fast calendar rendering
+- `TrackingMetadata`: Configuration that affects history interpretation
+
+##### Period Lifecycle
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        PERIOD LIFECYCLE                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  User presses "Done"                                            │
+│        │                                                        │
+│        ▼                                                        │
+│  ┌──────────────────┐                                           │
+│  │ Record timestamp │ → CompletionEvent saved to Room           │
+│  │ in completion_   │                                           │
+│  │ events table     │                                           │
+│  └──────────────────┘                                           │
+│        │                                                        │
+│        ▼                                                        │
+│  Widget shows "Done!" (existing behavior)                       │
+│                                                                 │
+│  ════════════════════════════════════════════════════════════   │
+│                                                                 │
+│  Reset alarm fires (period ends)                                │
+│        │                                                        │
+│        ▼                                                        │
+│  ┌──────────────────┐                                           │
+│  │ Finalize period  │ → For each day in the ended period:       │
+│  │                  │   - Check if any CompletionEvent exists   │
+│  │                  │   - Write FinalizedDay (true/false)       │
+│  └──────────────────┘                                           │
+│        │                                                        │
+│        ▼                                                        │
+│  Widget resets to "Do" (existing behavior)                      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+##### Tracking Start Date
+
+- **Set automatically** when user first presses "Done" (if not already set)
+- **Alternative:** Set when period configuration is first saved in settings
+- **Stored in:** `TrackingMetadata` table with key `"tracking_start_date"`
+
+##### Calendar UI Specification
+
+**Layout:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     [Calendar Tab]                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  January 2026                                       │    │
+│  │  Sun   Mon   Tue   Wed   Thu   Fri   Sat            │    │
+│  │                     1     2     3                    │    │
+│  │   4     5    [6]   [7]   (8)   (9)   [10]           │    │
+│  │  [11]  [12]  [13]  [14]  [15]  {16}  {17}           │    │
+│  │   18    19    20    21    22    23    24            │    │
+│  │   25    26    27    28    29    30    31            │    │
+│  ├─────────────────────────────────────────────────────┤    │
+│  │  February 2026                                      │    │
+│  │  Sun   Mon   Tue   Wed   Thu   Fri   Sat            │    │
+│  │   1     2     3     4     5     6     7             │    │
+│  │   ...                                               │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                             │
+│                    ▼ (scroll continues)                     │
+└─────────────────────────────────────────────────────────────┘
+
+Legend:
+  [N]  = Green (completed)
+  (N)  = Red (missed)
+  {N}  = Grey (current period, in progress)
+   N   = No color (future / before tracking)
+```
+
+**Visual Properties:**
+
+| Element | Specification |
+|---------|---------------|
+| Day cell size | ~40dp square |
+| Completed (green) | Background: #81C784 (same as Done button) |
+| Missed (red) | Background: #E57373 (same as Do button) |
+| In-progress (grey) | Background: #BDBDBD (Material grey 400) |
+| Day number text | 14sp, center-aligned |
+| Month header | 18sp bold, sticky or inline |
+| Week header | Sun-Sat labels, 12sp, muted color |
+
+**Scrolling Behavior:**
+- Continuous vertical scroll (not paginated by month)
+- Month headers appear inline when month changes
+- Smooth scrolling with momentum
+- Initial position: scroll to show current week/month
+
+**Scroll Bounds:**
+- **Top:** Beginning of month containing tracking start date
+- **Bottom:** End of current month (or current week + buffer)
+
+##### Period Boundary Calculation
+
+```kotlin
+/**
+ * Calculate which period a given date belongs to.
+ * Periods are sequential starting from trackingStartDate.
+ *
+ * @param date The date to check
+ * @param trackingStartDate When tracking began
+ * @param periodDays Length of each period
+ * @param resetHour Hour when periods reset (for boundary calculation)
+ * @param resetMinute Minute when periods reset
+ * @return Period index (0-based) and whether this period has ended
+ */
+fun calculatePeriodInfo(
+    date: LocalDate,
+    trackingStartDate: LocalDate,
+    periodDays: Int,
+    resetHour: Int,
+    resetMinute: Int
+): PeriodInfo {
+    // Days since tracking started
+    val daysSinceStart = ChronoUnit.DAYS.between(trackingStartDate, date)
+
+    // Period index (0 = first period)
+    val periodIndex = daysSinceStart / periodDays
+
+    // Period start and end dates
+    val periodStartDate = trackingStartDate.plusDays(periodIndex * periodDays)
+    val periodEndDate = periodStartDate.plusDays(periodDays - 1)
+
+    // Check if period has ended (reset time has passed on end date)
+    val periodEndDateTime = periodEndDate.atTime(resetHour, resetMinute)
+    val hasEnded = LocalDateTime.now() >= periodEndDateTime
+
+    return PeriodInfo(periodIndex, periodStartDate, periodEndDate, hasEnded)
+}
+```
+
+##### Finalization Logic
+
+When reset alarm fires (in `ResetAlarmReceiver`):
+
+```kotlin
+suspend fun finalizeEndedPeriod(context: Context, db: AppDatabase) {
+    val trackingStart = db.metadataDao().getTrackingStartDate() ?: return
+    val lastFinalized = db.metadataDao().getLastFinalizedDate()
+
+    val periodDays = // read from DataStore
+    val resetHour = // read from DataStore
+    val resetMinute = // read from DataStore
+
+    // Calculate the period that just ended
+    val endedPeriod = calculateEndedPeriod(trackingStart, periodDays, resetHour, resetMinute)
+
+    // Check if any completion event exists in this period
+    val completions = db.completionEventDao().getEventsBetween(
+        endedPeriod.startDate.toEpochMillis(),
+        endedPeriod.endDate.toEpochMillis()
+    )
+    val wasCompleted = completions.isNotEmpty()
+
+    // Write finalized status for each day in the period
+    for (day in endedPeriod.startDate..endedPeriod.endDate) {
+        db.finalizedDayDao().insert(
+            FinalizedDay(date = day.toString(), completed = wasCompleted)
+        )
+    }
+
+    // Update last finalized date
+    db.metadataDao().setLastFinalizedDate(endedPeriod.endDate)
+}
+```
+
+##### Calendar Rendering Logic
+
+```kotlin
+@Composable
+fun CalendarDay(
+    date: LocalDate,
+    finalizedDays: Map<String, Boolean>,
+    currentPeriodDates: Set<LocalDate>,
+    trackingStartDate: LocalDate?
+) {
+    val dateStr = date.toString()
+
+    val backgroundColor = when {
+        // Future date
+        date > LocalDate.now() -> Color.Transparent
+
+        // Before tracking started
+        trackingStartDate == null || date < trackingStartDate -> Color.Transparent
+
+        // Current period (in progress)
+        date in currentPeriodDates -> Grey400
+
+        // Finalized - completed
+        finalizedDays[dateStr] == true -> Green400
+
+        // Finalized - missed
+        finalizedDays[dateStr] == false -> Red400
+
+        // Not yet finalized (edge case: old period not finalized)
+        else -> Color.Transparent
+    }
+
+    // Render day cell with backgroundColor
+}
+```
+
+##### Manual Reset Behavior
+
+**Key principle:** Manual reset during the current period acts as an "undo" for accidental presses.
+
+When user manually resets (via Settings):
+1. Widget state set to `isDone = false`
+2. **Delete all `CompletionEvent` records from the current period**
+3. This allows the period to end as "missed" (red) if user doesn't press Done again
+
+```kotlin
+suspend fun manualReset(context: Context, db: AppDatabase) {
+    // 1. Reset widget state
+    updateWidgetState(isDone = false)
+
+    // 2. Delete completion events from current period
+    val currentPeriod = calculateCurrentPeriod(...)
+    db.completionEventDao().deleteEventsBetween(
+        currentPeriod.startMillis,
+        currentPeriod.endMillis
+    )
+}
+```
+
+**Behavior summary:**
+
+| Action | Effect on Widget | Effect on History |
+|--------|------------------|-------------------|
+| Press Done | Shows "Done!" | CompletionEvent recorded |
+| Manual reset (same period) | Shows "Do" | CompletionEvent deleted |
+| Manual reset (after period ended) | Shows "Do" | Past finalization unchanged |
+
+This allows users to fix mistakes during the current period while keeping historical integrity.
+
+##### Period Change Handling
+
+When user changes period length in settings:
+1. **Finalized days are immutable** - past `FinalizedDay` records never change
+2. **Current period is abandoned** - unfinalized days remain unfinalized (show as transparent/no-data)
+3. **New periods start from today** - fresh start with new period length
+
+**Implementation:**
+```kotlin
+suspend fun onPeriodChanged(newPeriodDays: Int) {
+    // 1. Save new period to DataStore
+    dataStore.edit { it[PERIOD_DAYS] = newPeriodDays }
+
+    // 2. Do NOT finalize abandoned period - just leave those days unfinalized
+    // They will show as transparent (no data) in calendar
+
+    // 3. Reschedule alarm for new period
+    ResetAlarmScheduler.scheduleNextReset(context, resetHour, resetMinute)
+}
+```
+
+**Example: Weekly (7-day) → Daily (1-day)**
+
+User is on day 4 of a 7-day period, pressed Done on day 2:
+
+| Day | Had Completion Event? | After Change |
+|-----|----------------------|--------------|
+| Day 1 (Jan 6) | No | Transparent (no data) - abandoned period |
+| Day 2 (Jan 7) | Yes | Transparent (no data) - abandoned period |
+| Day 3 (Jan 8) | No | Transparent (no data) - abandoned period |
+| Day 4 (Jan 9) | — | Grey (current 1-day period) |
+| Day 5+ | — | New daily periods |
+
+**Example: Daily (1-day) → Weekly (7-day)**
+
+Past daily periods already finalized:
+
+| Day | Finalized Status | After Change |
+|-----|-----------------|--------------|
+| Jan 6 | Green (done) | Green (unchanged) |
+| Jan 7 | Red (missed) | Red (unchanged) |
+| Jan 8 | Green (done) | Green (unchanged) |
+| Jan 9-15 | — | Grey (current 7-day period) |
+
+**Rationale:** Abandoned periods are not "failed" - the user changed the rules mid-game. Showing them as "no data" is more accurate than marking them red.
+
+##### FinalizedDay Immutability
+
+Use `INSERT ... ON CONFLICT IGNORE` to ensure finalized days can never be overwritten:
+
+```kotlin
+@Insert(onConflict = OnConflictStrategy.IGNORE)
+suspend fun insert(day: FinalizedDay)
+```
+
+This prevents edge cases where re-running finalization could change historical data.
+
+##### Edge Cases
+
+| Scenario | Behavior |
+|----------|----------|
+| App installed, no widget added | No tracking starts |
+| Widget added, never pressed | Tracking starts on first press |
+| Manual reset during period | Deletes completion events, allows "undo" |
+| Manual reset after period ended | Widget resets, history unchanged |
+| Period shortened (e.g., 7→1 day) | Abandoned period days show as no-data (transparent) |
+| Period lengthened (e.g., 1→7 day) | Past finalized days unchanged, new period starts |
+| Reset time changed mid-period | Current period uses new time, past unchanged |
+| Device time changed backwards | Finalized days immutable; may show gaps |
+| Device time changed forwards | Missed periods finalized on next alarm/launch |
+| App force-stopped for weeks | On next launch, finalize all missed periods |
+| Multiple "Done" presses in same period | All recorded; any one is sufficient for completion |
+| Widget removed and re-added | Tracking continues from existing data |
+
+##### Settings Integration
+
+Add to Settings screen:
+- **"Clear History" button** - Erases all Room data (CompletionEvent, FinalizedDay, TrackingMetadata)
+- Confirmation dialog: "This will permanently delete all tracking history. This cannot be undone."
+- After clear: tracking restarts on next "Done" press
+
+##### Navigation
+
+**Note:** Tab structure is established in Phase 4.1. Phase 5 replaces the Calendar placeholder with actual content.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  BigButton                                                  │
+├───────────────┬───────────────┬─────────────────────────────┤
+│   Settings    │   Calendar    │    Info                     │
+│               │   (Phase 5)   │   (Phase 4.1)               │
+└───────────────┴───────────────┴─────────────────────────────┘
+```
+
+**Tab Structure (from Phase 4.1):**
+- Tab 1: Settings (existing content)
+- Tab 2: Calendar (placeholder → real content in Phase 5)
+- Tab 3: Info (about, permissions)
+
+---
+
+#### Phase 5 Requirements
+
+| ID | Requirement |
+|----|-------------|
+| P5.1 | Calendar view displays scrollable history of tracked days |
+| P5.2 | Completed periods show as green |
+| P5.3 | Missed periods show as red |
+| P5.4 | Current in-progress period shows as grey |
+| P5.5 | Days before tracking started show no color |
+| P5.6 | Future days show no color |
+| P5.7 | Multi-day periods color all days in the period identically |
+| P5.8 | Period changes do not affect past finalized data |
+| P5.9 | "Clear History" option in settings erases all tracking data |
+| P5.10 | Calendar scrolls continuously (not paginated by month) |
+| P5.11 | Month headers appear inline during scroll |
+| P5.12 | Historical data persists across app restarts |
+| P5.13 | Completion events are recorded when user presses "Done" |
+| P5.14 | Period finalization occurs when reset alarm fires |
+
+---
+
+#### Phase 5 Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Storage for history | Room database | Structured queries, scales well, standard Android practice |
+| Day status storage | Per-day records (FinalizedDay) | Fast rendering, handles period changes gracefully |
+| Period boundary anchor | Tracking start date | Predictable, user-controlled |
+| Current period display | Grey color | Prevents gaming; status locked only when period ends |
+| Calendar scroll style | Continuous vertical | Handles periods spanning month boundaries naturally |
+| Past data on period change | Immutable | Simplifies logic, preserves historical accuracy |
+| Tracking start trigger | First "Done" press | Natural starting point for habit tracking |
+
+---
+
+#### Phase 5a: Room Database Setup
+
+**Deliverables:**
+- Room database with entities, DAOs, and database class
+- Database initialization in Application class
+
+**Technical TODOs:**
+
+1. **Add Room dependencies to `build.gradle.kts`**
+   ```kotlin
+   implementation("androidx.room:room-runtime:2.6.1")
+   implementation("androidx.room:room-ktx:2.6.1")
+   kapt("androidx.room:room-compiler:2.6.1")
+   ```
+   Also add kapt plugin: `id("kotlin-kapt")`
+
+2. **Create `data/db/entities/` package with entity classes:**
+   - `CompletionEvent.kt` - Records each "Done" press
+   - `FinalizedDay.kt` - Stores locked day status
+   - `TrackingMetadata.kt` - Key-value config storage
+
+3. **Create `data/db/dao/` package with DAO interfaces:**
+   - `CompletionEventDao.kt`
+     - `insert(event: CompletionEvent)`
+     - `getEventsBetween(startMillis: Long, endMillis: Long): List<CompletionEvent>`
+     - `deleteEventsBetween(startMillis: Long, endMillis: Long)` - for manual reset undo
+     - `deleteAll()`
+   - `FinalizedDayDao.kt`
+     - `insert(day: FinalizedDay)` (with **IGNORE** strategy - immutable once written)
+     - `getAll(): List<FinalizedDay>`
+     - `getDaysBetween(startDate: String, endDate: String): List<FinalizedDay>`
+     - `deleteAll()`
+   - `TrackingMetadataDao.kt`
+     - `get(key: String): TrackingMetadata?`
+     - `set(metadata: TrackingMetadata)` (with REPLACE strategy)
+     - `deleteAll()`
+
+4. **Create `data/db/AppDatabase.kt`:**
+   - Abstract class extending RoomDatabase
+   - Expose DAOs
+   - Singleton pattern with `getInstance(context)`
+
+5. **Create `BigButtonApplication.kt`:**
+   - Application class for database initialization
+   - Register in AndroidManifest.xml
+
+**Files to Create:**
+- `data/db/entities/CompletionEvent.kt`
+- `data/db/entities/FinalizedDay.kt`
+- `data/db/entities/TrackingMetadata.kt`
+- `data/db/dao/CompletionEventDao.kt`
+- `data/db/dao/FinalizedDayDao.kt`
+- `data/db/dao/TrackingMetadataDao.kt`
+- `data/db/AppDatabase.kt`
+- `BigButtonApplication.kt`
+
+**Files to Modify:**
+- `build.gradle.kts` (add Room dependencies)
+- `AndroidManifest.xml` (register Application class)
+
+**Testing:**
+- App builds without errors
+- Database can be instantiated
+- Basic insert/query works (via debugger or test)
+
+---
+
+#### Phase 5b: Completion Event Recording & Manual Reset
+
+**Deliverables:**
+- "Done" presses recorded to Room database
+- Tracking start date set on first completion
+- Manual reset deletes current period's completion events (undo functionality)
+
+**Technical TODOs:**
+
+1. **Update `MarkDoneAction.kt`:**
+   - Get database instance
+   - On successful mark done:
+     - Insert `CompletionEvent(timestamp = now, periodDays = currentPeriod)`
+     - If tracking not started, set `tracking_start_date` in metadata
+
+2. **Create helper extension in `TrackingMetadataDao.kt`:**
+   ```kotlin
+   suspend fun getTrackingStartDate(): LocalDate?
+   suspend fun setTrackingStartDate(date: LocalDate)
+   ```
+
+3. **Add database access to widget actions:**
+   - Context → Application → Database pattern
+   - Or inject via Hilt (optional, adds complexity)
+
+4. **Update `ui/SettingsScreen.kt` manual reset:**
+   - After resetting widget state, delete completion events from current period
+   - Calculate current period boundaries using `PeriodCalculator`
+   - Call `completionEventDao.deleteEventsBetween(periodStart, periodEnd)`
+   - This enables "undo" for accidental Done presses
+
+**Files to Modify:**
+- `widget/MarkDoneAction.kt`
+- `ui/SettingsScreen.kt` (manual reset deletes events)
+- `data/db/dao/TrackingMetadataDao.kt` (add helper functions)
+
+**Testing:**
+- Press "Done" on widget
+- Verify `completion_events` table has new record (via App Inspection in Android Studio)
+- Verify `tracking_metadata` has `tracking_start_date` entry
+- Multiple presses create multiple events
+- **Manual reset test:** Press Done, then reset via settings → completion event deleted
+- **Undo test:** Press Done, reset, let period end → day shows red (not green)
+
+---
+
+#### Phase 5c: Period Finalization
+
+**Deliverables:**
+- Periods finalized when reset alarm fires
+- Missed periods catch-up on app launch
+
+**Technical TODOs:**
+
+1. **Create `util/PeriodCalculator.kt`:**
+   - `calculateCurrentPeriod(trackingStart, periodDays, resetHour, resetMinute): PeriodInfo`
+   - `calculatePeriodForDate(date, trackingStart, periodDays): PeriodInfo`
+   - `getPeriodsToFinalize(trackingStart, lastFinalized, periodDays, resetHour, resetMinute): List<PeriodInfo>`
+   - Data class `PeriodInfo(startDate: LocalDate, endDate: LocalDate, hasEnded: Boolean)`
+
+2. **Update `ResetAlarmReceiver.kt`:**
+   - After reset logic, call `finalizeEndedPeriods(context)`
+   - Finalization logic:
+     - Get tracking start date from metadata
+     - Get last finalized date from metadata
+     - Calculate periods that need finalization
+     - For each period:
+       - Query completion events in date range
+       - Write FinalizedDay for each day (completed = events.isNotEmpty())
+     - Update last finalized date
+
+3. **Handle catch-up on app launch:**
+   - In `BigButtonWidgetReceiver.onEnabled()` or widget update
+   - Check if any periods need finalization (app was closed during reset times)
+   - Finalize missed periods
+
+4. **Create `util/FinalizationHelper.kt`:**
+   - Centralize finalization logic used by both alarm receiver and catch-up
+
+**Files to Create:**
+- `util/PeriodCalculator.kt`
+- `util/FinalizationHelper.kt`
+
+**Files to Modify:**
+- `receiver/ResetAlarmReceiver.kt`
+- `widget/BigButtonWidgetReceiver.kt` (catch-up check)
+
+**Testing:**
+- Set period to 1 day, reset time 2 min from now
+- Press "Done", wait for reset
+- Check `finalized_days` table has entry for today with `completed=true`
+- Repeat without pressing Done → entry with `completed=false`
+- Force stop app, wait past reset time, reopen → catch-up finalization occurs
+
+---
+
+#### Phase 5d: Calendar UI - Basic
+
+**Deliverables:**
+- Replace Calendar tab placeholder with actual calendar grid
+- Basic calendar grid showing colored days
+
+**Dependencies:** Phase 4.1 (Tab Navigation) - tab structure already in place
+
+**Technical TODOs:**
+
+1. **Update `ui/CalendarScreen.kt`:**
+   - Replace placeholder with actual calendar implementation
+   - Load finalized days from Room (as StateFlow or collectAsState)
+   - Load tracking start date from Room
+   - Calculate current period for grey highlighting
+   - Basic month grid:
+     - LazyColumn with month sections
+     - Each month: header + 7-column grid of days
+     - Day cells with colored backgrounds
+
+2. **Create `ui/components/CalendarDay.kt`:**
+   - Composable for single day cell
+   - Parameters: date, backgroundColor, isToday
+   - 40dp square, centered text, rounded corners
+
+3. **Create `ui/components/CalendarMonth.kt`:**
+   - Composable for one month section
+   - Month header text
+   - Week day labels (Sun-Sat)
+   - Grid of CalendarDay cells
+
+4. **Create `data/repository/HistoryRepository.kt`:**
+   - Abstracts database access for UI
+   - `getFinalizedDays(): Flow<Map<String, Boolean>>`
+   - `getTrackingStartDate(): Flow<LocalDate?>`
+   - `getCurrentPeriodDates(): Flow<Set<LocalDate>>`
+
+**Files to Create:**
+- `ui/components/CalendarDay.kt`
+- `ui/components/CalendarMonth.kt`
+- `data/repository/HistoryRepository.kt`
+
+**Files to Modify:**
+- `ui/CalendarScreen.kt` (replace placeholder with calendar grid)
+
+**Testing:**
+- Tap Calendar tab → see month grid (not placeholder)
+- Days show correct colors based on finalized data
+- Current period shows grey
+- Empty state shows correctly when no tracking data
+
+---
+
+#### Phase 5e: Calendar UI - Polish
+
+**Deliverables:**
+- Continuous smooth scrolling
+- Proper month boundaries and headers
+- Scroll to current week on open
+- Performance optimization
+
+**Technical TODOs:**
+
+1. **Implement continuous scrolling:**
+   - Calculate total weeks from tracking start to current month end
+   - LazyColumn with weeks as items (not months)
+   - Insert month header rows when month changes
+
+2. **Scroll to current position:**
+   - On first composition, scroll to week containing today
+   - `LaunchedEffect` with `listState.scrollToItem()`
+
+3. **Visual polish:**
+   - Today indicator (border or highlight)
+   - Sticky week day headers (optional, may be complex)
+   - Smooth color transitions
+   - Loading state while data loads
+
+4. **Performance:**
+   - Only load visible date range from Room
+   - Paging if history is very long (optional)
+   - Remember scroll position on tab switch
+
+5. **Edge case handling:**
+   - Empty state (no tracking yet)
+   - Very short tracking history (< 1 month)
+   - Future months (show but no color)
+
+**Files to Modify:**
+- `ui/CalendarScreen.kt`
+- `ui/components/CalendarMonth.kt`
+- `data/repository/HistoryRepository.kt`
+
+**Testing:**
+- Scroll smoothly through multiple months
+- Month headers appear at correct positions
+- On open, scrolls to show current week
+- No jank with large history
+
+---
+
+#### Phase 5f: Clear History
+
+**Deliverables:**
+- "Clear History" button in Settings
+- Confirmation dialog
+- Complete data erasure
+
+**Technical TODOs:**
+
+1. **Update `ui/SettingsScreen.kt`:**
+   - Add "Clear History" section at bottom
+   - Button with destructive styling (red or outlined)
+   - Click shows confirmation dialog
+
+2. **Create confirmation dialog:**
+   - AlertDialog with warning text
+   - "Cancel" and "Clear" buttons
+   - Clear button calls repository to delete all data
+
+3. **Update `data/repository/HistoryRepository.kt`:**
+   - `clearAllHistory()` function
+   - Deletes from all three tables
+   - Runs in IO dispatcher
+
+4. **Post-clear behavior:**
+   - Show toast/snackbar "History cleared"
+   - Calendar shows empty state
+   - Next "Done" press starts fresh tracking
+
+**Files to Modify:**
+- `ui/SettingsScreen.kt`
+- `data/repository/HistoryRepository.kt`
+
+**Testing:**
+- Have some history, press Clear History
+- Confirm dialog appears
+- After confirm, calendar is empty
+- Database tables are empty
+- Press Done → new tracking starts
+
+---
+
+#### Phase 5 Testing Plan
+
+| Test | Steps | Expected Result |
+|------|-------|-----------------|
+| Event recording | Press Done | completion_events has new row |
+| Tracking start | First Done press | tracking_metadata has start date |
+| Period finalization | Wait for reset | finalized_days populated |
+| Green day | Done pressed, period ended | Day shows green |
+| Red day | Done not pressed, period ended | Day shows red |
+| Grey day | Current period | Day shows grey |
+| Multi-day period | 3-day period, press Done once | All 3 days green after period ends |
+| Missed multi-day | 3-day period, no press | All 3 days red after period ends |
+| Calendar scroll | Scroll up/down | Smooth, shows correct months |
+| Current week focus | Open calendar | Scrolled to current week |
+| Clear history | Settings → Clear | All data deleted, calendar empty |
+| Period change (lengthen) | Change from daily to weekly | Past finalized unchanged, new 7-day period starts |
+| Period change (shorten) | Mid-week, change to daily | Abandoned days show transparent, new daily starts |
+| Catch-up | Force stop, wait, reopen | Missed periods finalized |
+| Manual reset undo | Press Done, reset, let period end | Day shows red (event was deleted) |
+| Manual reset after period | Period ends green, then reset | Widget resets, history stays green |
+| Reset time change | Change reset time mid-period | Current period uses new time |
+| Finalized immutability | Try to re-finalize same day | Original status preserved (IGNORE) |
+
+---
 
 ### Future Enhancements
-- Info/Manual tab in app (usage instructions, about)
 - Multiple widget instances for different habits
 - Action labels on widgets ("Water plants")
 - Notifications/reminders
