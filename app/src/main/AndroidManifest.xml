@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Required for exact alarms on API 31+ -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Required to reschedule alarms after device reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -29,6 +34,24 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/big_button_widget_info" />
+        </receiver>
+
+        <!-- Reset alarm receiver -->
+        <receiver
+            android:name=".receiver.ResetAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.bigbutton.ACTION_RESET_CHECK" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Boot receiver to reschedule alarms after device restart -->
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
         </receiver>
     </application>
 
