@@ -343,9 +343,90 @@ Use `INSERT ... ON CONFLICT IGNORE` to ensure finalized days can never be overwr
 - **Phase 5a:** Room Database Setup ✅ Complete
 - **Phase 5b:** Completion Event Recording & Manual Reset ✅ Complete
 - **Phase 5c:** Period Finalization ✅ Complete
-- **Phase 5d:** Calendar UI - Basic
+- **Phase 5d:** Calendar UI - Basic ✅ Complete
 - **Phase 5e:** Calendar UI - Polish
 - **Phase 5f:** Clear History
+
+---
+
+#### Phase 5d: Calendar UI - Basic ✅ Complete
+
+**Scope:** Replace CalendarScreen placeholder with a working continuously-scrollable calendar that displays day status from the database.
+
+**Deliverables:**
+- Continuously scrollable calendar using LazyColumn with week rows
+- Day cells colored based on status (green/red/grey/transparent)
+- Month headers inline when week crosses month boundary
+- Day-of-week header row (Sun-Sat)
+- Initial scroll position at current week
+- Query FinalizedDay records and tracking metadata from Room
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P5d.1 | Calendar displays as vertical scroll of week rows |
+| P5d.2 | Each week row shows 7 day cells (Sun-Sat) |
+| P5d.3 | Day cells show date number |
+| P5d.4 | Finalized completed days show green background |
+| P5d.5 | Finalized missed days show red background |
+| P5d.6 | Current in-progress period days show grey background |
+| P5d.7 | Days before tracking started show no background |
+| P5d.8 | Future days show no background |
+| P5d.9 | Month header appears above first week of each month |
+| P5d.10 | Day-of-week labels (S M T W T F S) at top |
+| P5d.11 | Calendar scrolls to current week on load |
+
+**Color Scheme (from mockup):**
+- Green (completed): #4CAF50 or similar
+- Red (missed): #F44336 or similar
+- Grey (in-progress): #9E9E9E or similar
+- Transparent: no background
+
+**Day Status Logic:**
+```
+For each day:
+1. If day > today → transparent (future)
+2. If day < tracking_start_date → transparent (before tracking)
+3. If FinalizedDay exists for date:
+   - completed=true → green
+   - completed=false → red
+4. If day is in current period (not yet finalized) → grey
+5. Otherwise → transparent (gap/abandoned period)
+```
+
+**Current Period Calculation:**
+- Read periodDays, resetHour, resetMinute from DataStore
+- Calculate period boundaries based on reset time
+- Days from current period start to today (inclusive) are "in progress"
+
+**Data Flow:**
+```
+CalendarScreen
+  ├── reads: tracking_start_date from TrackingMetadata
+  ├── reads: FinalizedDay records for visible date range
+  ├── reads: periodDays, resetHour, resetMinute from DataStore
+  └── calculates: current period boundaries
+```
+
+**Files to Create/Modify:**
+- `ui/CalendarScreen.kt` - Replace placeholder with full implementation
+- `ui/components/WeekRow.kt` - Week row composable (optional, can inline)
+- `ui/components/DayCell.kt` - Day cell composable (optional, can inline)
+
+**Testing Checklist:**
+- [x] Calendar displays with week rows
+- [x] Day-of-week header shows S M T W T F S
+- [x] Month headers appear (e.g., "January 2026")
+- [x] Green days appear for finalized completed
+- [x] Red days appear for finalized missed
+- [x] Grey days appear for current in-progress period
+- [x] Days before tracking start have no color
+- [x] Future days have no color
+- [x] Calendar scrolls to current week on open
+- [x] Scrolling up/down works smoothly
+
+**Testing Limitation:** Time-travel testing (manually advancing device clock) does not trigger period finalization. This is because AlarmManager doesn't retroactively fire alarms when the clock jumps forward. The widget resets via tap-check but `finalizePeriod()` only runs from `ResetAlarmReceiver`. Real-world usage is unaffected since alarms fire naturally.
 
 ---
 

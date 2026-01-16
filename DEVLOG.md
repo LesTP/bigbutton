@@ -613,6 +613,49 @@ Removed verbose debug logging from receiver classes:
 
 ---
 
+### Phase 5d: Calendar UI - Basic ✅
+
+#### Step 5d.1: CalendarScreen Implementation
+**Date:** 2026-01-16
+
+Replaced placeholder CalendarScreen with full implementation:
+- Continuously scrollable LazyColumn with week rows
+- Day cells with colored backgrounds based on status
+- Inline month headers when week contains 1st of month
+- Sticky day-of-week header (S M T W T F S)
+- Auto-scroll to current week on load
+- Data loaded from Room (FinalizedDay) and DataStore (period settings)
+
+**Day Status Logic:**
+1. Future days → transparent
+2. Before tracking started → transparent
+3. Finalized completed → green (#4CAF50)
+4. Finalized missed → red (#F44336)
+5. Current period (not finalized) → grey (#9E9E9E)
+6. Gap/abandoned period → transparent
+
+**Files Modified:**
+- `ui/CalendarScreen.kt` - Complete rewrite with calendar implementation
+
+#### Step 5d.2: Testing
+**Date:** 2026-01-16
+
+Verified all test cases:
+- ✅ Calendar displays with week rows
+- ✅ Day-of-week header shows S M T W T F S
+- ✅ Month headers appear (e.g., "January 2026")
+- ✅ Green days appear for finalized completed
+- ✅ Red days appear for finalized missed
+- ✅ Grey days appear for current in-progress period
+- ✅ Days before tracking start have no color
+- ✅ Future days have no color
+- ✅ Calendar scrolls to current week on open
+- ✅ Scrolling works smoothly
+
+**Known Limitation:** Time-travel testing (manually advancing device clock) does not trigger period finalization because AlarmManager doesn't retroactively fire alarms. Real-world usage is unaffected.
+
+---
+
 ## Issues & Resolutions
 
 ### Issue #1: Missing Launcher Icon Resource
@@ -719,4 +762,4 @@ For each increment:
 
 ---
 
-Last Updated: 2026-01-16 (Phase 5c complete, ready for Phase 5d: Calendar UI)
+Last Updated: 2026-01-16 (Phase 5d complete, ready for Phase 5e: Calendar UI Polish)
