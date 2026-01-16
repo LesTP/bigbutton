@@ -2,6 +2,17 @@
 
 A simple habit tracking Android widget. Track whether you've done something today/this week/this month with a single tap.
 
+## Cold Start Summary
+
+- **What:** Personal Android widget for habit tracking with configurable periods (daily/weekly/monthly/custom 1-90 days)
+- **Current state:** Phases 1-4 complete and working. Widget displays, tap toggles Do→Done, auto-resets at configured time, settings UI with tabs (Settings | Calendar | Info)
+- **What works:** Widget interaction, state persistence, manual reset, period/time configuration, automatic reset via AlarmManager, Room database with completion events and period finalization
+- **What's in progress:** Phase 5d - Calendar UI (basic). Database tables ready, finalization logic complete, need to build the visual calendar
+- **What's broken:** Multi-day period testing incomplete (see DEVLOG TODO)
+- **Current focus:** Implement scrollable calendar view showing green (completed) / red (missed) / grey (in-progress) days
+- **Key constraints:** Android 12+ requires manual user approval for exact alarms (Settings > Apps > Alarms & reminders). Without this, auto-reset won't fire.
+- **Gotchas:** Never call `updateAppWidgetState()` inside `provideGlance()` - causes deadlock. See DEVLOG Issue #4.
+
 ## Requirements
 
 - Android Studio Hedgehog or later
@@ -47,20 +58,17 @@ bigbutton/
 ├── app/src/main/
 │   ├── java/com/example/bigbutton/
 │   │   ├── MainActivity.kt
-│   │   ├── IntroScreen.kt
-│   │   ├── widget/
-│   │   │   ├── BigButtonWidget.kt
-│   │   │   └── BigButtonWidgetReceiver.kt
-│   │   └── ui/theme/
+│   │   ├── data/
+│   │   │   ├── BigButtonDatabase.kt
+│   │   │   ├── BigButtonDao.kt
+│   │   │   ├── CompletionEvent.kt
+│   │   │   ├── FinalizedDay.kt
+│   │   │   └── TrackingMetadata.kt
+│   │   ├── receiver/
+│   │   ├── ui/
+│   │   ├── util/
+│   │   └── widget/
 │   └── res/
-│       ├── drawable/
-│       │   ├── button_do_gradient.xml
-│       │   ├── button_done_gradient.xml
-│       │   └── ic_settings.xml
-│       ├── layout/
-│       │   └── widget_loading.xml
-│       └── xml/
-│           └── big_button_widget_info.xml
 ├── build.gradle.kts
 └── settings.gradle.kts
 ```
