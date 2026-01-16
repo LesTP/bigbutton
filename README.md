@@ -5,13 +5,16 @@ A simple habit tracking Android widget. Track whether you've done something toda
 ## Cold Start Summary
 
 - **What:** Personal Android widget for habit tracking with configurable periods (daily/weekly/monthly/custom 1-90 days)
-- **Current state:** Phases 1-4 complete and working. Widget displays, tap toggles Do→Done, auto-resets at configured time, settings UI with tabs (Settings | Calendar | Info)
-- **What works:** Widget interaction, state persistence, manual reset, period/time configuration, automatic reset via AlarmManager, Room database with completion events and period finalization
-- **What's in progress:** Phase 5d - Calendar UI (basic). Database tables ready, finalization logic complete, need to build the visual calendar
-- **What's broken:** Multi-day period testing incomplete (see DEVLOG TODO)
-- **Current focus:** Implement scrollable calendar view showing green (completed) / red (missed) / grey (in-progress) days
+- **Architecture:** Jetpack Compose + Glance for widget, DataStore for widget state, Room for history
 - **Key constraints:** Android 12+ requires manual user approval for exact alarms (Settings > Apps > Alarms & reminders). Without this, auto-reset won't fire.
 - **Gotchas:** Never call `updateAppWidgetState()` inside `provideGlance()` - causes deadlock. See DEVLOG Issue #4.
+
+## Current Status
+
+- **Phase:** 5d - Calendar UI (basic)
+- **Focus:** Implement scrollable calendar view showing green (completed) / red (missed) / grey (in-progress) days
+- **What works:** Widget interaction, state persistence, manual reset, period/time config, auto-reset via AlarmManager, Room database with completion events and period finalization
+- **Blocked/Broken:** None
 
 ## Requirements
 

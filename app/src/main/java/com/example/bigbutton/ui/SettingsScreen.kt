@@ -1,0 +1,361 @@
+package com.example.bigbutton.ui
+
+import android.app.TimePickerDialog
+import android.text.format.DateFormat
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.edit
+import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.state.updateAppWidgetState
+import com.example.bigbutton.data.BigButtonDatabase
+import com.example.bigbutton.receiver.ResetAlarmScheduler
+import com.example.bigbutton.util.ResetCalculator
+import com.example.bigbutton.widget.BigButtonStateDefinition
+import com.example.bigbutton.widget.BigButtonWidget
+import com.example.bigbutton.widget.dataStore
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import java.util.Calendar
+
+// Period presets
+private enum class PeriodPreset(val days: Int, val label: String) {
+    DAILY(1, "Daily (1 day)"),
+    WEEKLY(7, "Weekly (7 days)"),
+    MONTHLY(30, "Monthly (30 days)"),
+    CUSTOM(-1, "Custom")
+}
+
+/**
+ * Formats hour and minute as time string using system 12h/24h preference.
+ */
+private fun formatTime(hour: Int, minute: Int, use24HourFormat: Boolean): String {
+    return if (use24HourFormat) {
+        String.format("%02d:%02d", hour, minute)
+    } else {
+        val displayHour = when {
+            hour == 0 -> 12
+            hour > 12 -> hour - 12
+            else -> hour
+        }
+        val amPm = if (hour < 12) "AM" else "PM"
+        String.format("%d:%02d %s", displayHour, minute, amPm)
+    }
+}
+
+@Composable
+fun SettingsScreen(onResetComplete: () -> Unit = {}) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Read current state from DataStore
+    val isDone by context.dataStore.data
+        .map { prefs -> prefs[BigButtonStateDefinition.Keys.IS_DONE] ?: false }
+        .collectAsState(initial = false)
+
+    val periodDays by context.dataStore.data
+        .map { prefs -> prefs[BigButtonStateDefinition.Keys.PERIOD_DAYS] ?: BigButtonStateDefinition.DEFAULT_PERIOD_DAYS }
+        .collectAsState(initial = BigButtonStateDefinition.DEFAULT_PERIOD_DAYS)
+
+    val resetHour by context.dataStore.data
+        .map { prefs -> prefs[BigButtonStateDefinition.Keys.RESET_HOUR] ?: BigButtonStateDefinition.DEFAULT_RESET_HOUR }
+        .collectAsState(initial = BigButtonStateDefinition.DEFAULT_RESET_HOUR)
+
+    val resetMinute by context.dataStore.data
+        .map { prefs -> prefs[BigButtonStateDefinition.Keys.RESET_MINUTE] ?: BigButtonStateDefinition.DEFAULT_RESET_MINUTE }
+        .collectAsState(initial = BigButtonStateDefinition.DEFAULT_RESET_MINUTE)
+
+    // Check system 12h/24h preference
+    val is24HourFormat = DateFormat.is24HourFormat(context)
+
+    // Determine which preset is selected (or custom)
+    val selectedPreset = when (periodDays) {
+        1 -> PeriodPreset.DAILY
+        7 -> PeriodPreset.WEEKLY
+        30 -> PeriodPreset.MONTHLY
+        else -> PeriodPreset.CUSTOM
+    }
+
+    // Custom days input state
+    // Use normalized key: same for all presets (0), unique for custom values
+    // This prevents text reset when typing a value that matches a preset
+    val customRememberKey = if (periodDays in listOf(1, 7, 30)) 0 else periodDays
+    var customDaysText by remember(customRememberKey) {
+        mutableStateOf(if (selectedPreset == PeriodPreset.CUSTOM) periodDays.toString() else "")
+    }
+
+    // Focus requester for custom input field
+    val customFocusRequester = remember { FocusRequester() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Reset section
+        Text(
+            text = if (isDone) "Status: Done" else "Status: Not done",
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                scope.launch {
+                    // Update all widget instances via Glance state management
+                    val manager = GlanceAppWidgetManager(context)
+                    val widgetIds = manager.getGlanceIds(BigButtonWidget::class.java)
+                    widgetIds.forEach { glanceId ->
+                        // Reset state via Glance (ensures proper widget refresh)
+                        updateAppWidgetState(context, BigButtonStateDefinition, glanceId) { prefs ->
+                            prefs.toMutablePreferences().apply {
+                                this[BigButtonStateDefinition.Keys.IS_DONE] = false
+                                this[BigButtonStateDefinition.Keys.LAST_CHANGED] = System.currentTimeMillis()
+                            }
+                        }
+                        BigButtonWidget().update(context, glanceId)
+                    }
+
+                    // Delete completion events from current period (undo behavior)
+                    val db = BigButtonDatabase.getDatabase(context)
+                    val now = System.currentTimeMillis()
+                    val periodStart = ResetCalculator.calculateCurrentPeriodStart(
+                        now, periodDays, resetHour, resetMinute
+                    )
+                    db.bigButtonDao().deleteEventsInRange(periodStart, now + 1)
+
+                    // Close activity
+                    onResetComplete()
+                }
+            },
+            enabled = isDone,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error
+            )
+        ) {
+            Text(
+                text = "Reset to \"Do\"",
+                fontSize = 16.sp,
+                modifier = Modifier.padding(8.dp)
+            )
+        }
+
+        if (!isDone) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Nothing to reset - widget is already in \"Do\" state",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Period selector section
+        Text(
+            text = "Reset Period",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Column {
+                // Preset options
+                PeriodPreset.entries.forEach { preset ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                if (preset == PeriodPreset.CUSTOM) {
+                                    customFocusRequester.requestFocus()
+                                } else {
+                                    scope.launch {
+                                        context.dataStore.edit { prefs ->
+                                            prefs[BigButtonStateDefinition.Keys.PERIOD_DAYS] = preset.days
+                                        }
+                                        // Reschedule reset alarm with new period
+                                        ResetAlarmScheduler.scheduleNextReset(context, resetHour, resetMinute)
+                                    }
+                                }
+                            }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedPreset == preset,
+                            onClick = {
+                                if (preset == PeriodPreset.CUSTOM) {
+                                    customFocusRequester.requestFocus()
+                                } else {
+                                    scope.launch {
+                                        context.dataStore.edit { prefs ->
+                                            prefs[BigButtonStateDefinition.Keys.PERIOD_DAYS] = preset.days
+                                        }
+                                        // Reschedule reset alarm with new period
+                                        ResetAlarmScheduler.scheduleNextReset(context, resetHour, resetMinute)
+                                    }
+                                }
+                            }
+                        )
+
+                        if (preset == PeriodPreset.CUSTOM) {
+                            Text(
+                                text = "Custom: ",
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            OutlinedTextField(
+                                value = customDaysText,
+                                onValueChange = { newValue ->
+                                    // Only allow digits
+                                    val filtered = newValue.filter { it.isDigit() }
+                                    customDaysText = filtered
+
+                                    // Parse and save if valid
+                                    val days = filtered.toIntOrNull()
+                                    if (days != null && days in BigButtonStateDefinition.MIN_PERIOD_DAYS..BigButtonStateDefinition.MAX_PERIOD_DAYS) {
+                                        scope.launch {
+                                            context.dataStore.edit { prefs ->
+                                                prefs[BigButtonStateDefinition.Keys.PERIOD_DAYS] = days
+                                            }
+                                            // Reschedule reset alarm with new period
+                                            ResetAlarmScheduler.scheduleNextReset(context, resetHour, resetMinute)
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .width(70.dp)
+                                    .focusRequester(customFocusRequester),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                placeholder = { Text("1-90") }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "days",
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        } else {
+                            Text(
+                                text = preset.label,
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Show validation hint for custom
+        if (selectedPreset == PeriodPreset.CUSTOM) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Enter a value between 1 and 90 days",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Reset time section
+        Text(
+            text = "Reset Time",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedButton(
+            onClick = {
+                TimePickerDialog(
+                    context,
+                    { _, selectedHour, selectedMinute ->
+                        scope.launch {
+                            context.dataStore.edit { prefs ->
+                                prefs[BigButtonStateDefinition.Keys.RESET_HOUR] = selectedHour
+                                prefs[BigButtonStateDefinition.Keys.RESET_MINUTE] = selectedMinute
+                            }
+                            // Reschedule reset alarm with new time
+                            ResetAlarmScheduler.scheduleNextReset(context, selectedHour, selectedMinute)
+                        }
+                    },
+                    resetHour,
+                    resetMinute,
+                    is24HourFormat
+                ).show()
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = formatTime(resetHour, resetMinute, is24HourFormat),
+                fontSize = 16.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Widget resets to \"Do\" at this time each period",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}

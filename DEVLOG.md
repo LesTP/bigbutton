@@ -447,6 +447,172 @@ Verified all test cases:
 
 ---
 
+### Phase 5a: Room Database Setup ✅
+
+#### Step 5a.1: Build Configuration
+**Date:** 2026-01-11
+
+Added Room dependencies and KSP annotation processor:
+- KSP plugin 1.9.20-1.0.14 (matches Kotlin version)
+- Room 2.6.1 (runtime, ktx, compiler)
+
+**Files Modified:**
+- `settings.gradle.kts` - Added KSP plugin declaration
+- `app/build.gradle.kts` - Applied KSP plugin, added Room dependencies
+
+#### Step 5a.2: Entity Classes
+**Date:** 2026-01-11
+
+Created three Room entities per DEVPLAN specification:
+
+1. **CompletionEvent** - Records "Done" button presses
+   - `id: Long` (auto-generated PK)
+   - `timestamp: Long` (epoch millis)
+   - `periodDays: Int` (period at time of completion)
+
+2. **FinalizedDay** - Locked-in day status
+   - `date: String` (PK, ISO format "2026-01-15")
+   - `completed: Boolean` (green/red)
+
+3. **TrackingMetadata** - Key-value config store
+   - `key: String` (PK)
+   - `value: String`
+   - Companion object with key constants
+
+#### Step 5a.3: DAO Interface
+**Date:** 2026-01-11
+
+Created `BigButtonDao` with operations for all three entities:
+- CompletionEvent: insert, getEventsInRange, deleteEventsInRange, deleteAll
+- FinalizedDay: insertIgnore, insertFinalizedDays (batch), getDaysInRange, getDay, deleteAll
+- TrackingMetadata: upsert, get, deleteAll
+
+#### Step 5a.4: Database Class
+**Date:** 2026-01-11
+
+Created `BigButtonDatabase` with:
+- Room database annotation (version 1, exportSchema=false)
+- Abstract DAO accessor
+- Thread-safe singleton pattern using `@Volatile` and `synchronized`
+
+**Files Created:**
+- `data/CompletionEvent.kt`
+- `data/FinalizedDay.kt`
+- `data/TrackingMetadata.kt`
+- `data/BigButtonDao.kt`
+- `data/BigButtonDatabase.kt`
+
+---
+
+### Phase 5b: Completion Event Recording & Manual Reset ✅
+
+#### Step 5b.1: Period Start Calculator
+**Date:** 2026-01-11
+
+Added `calculateCurrentPeriodStart()` to `util/ResetCalculator.kt`:
+- Calculates the start timestamp of the current period
+- Used to determine which CompletionEvents to delete on manual reset
+- Accounts for reset time boundary (before/after today's reset time)
+
+#### Step 5b.2: Completion Event Recording
+**Date:** 2026-01-11
+
+Updated `widget/MarkDoneAction.kt`:
+- When user presses "Done", inserts CompletionEvent with timestamp and periodDays
+- On first-ever completion, sets `tracking_start_date` in TrackingMetadata
+- Database writes happen in the same coroutine as alarm scheduling
+
+#### Step 5b.3: Manual Reset Event Deletion
+**Date:** 2026-01-11
+
+Updated `ui/SettingsScreen.kt`:
+- When user manually resets, deletes all CompletionEvents from current period
+- Acts as "undo" for accidental Done presses
+- Uses `calculateCurrentPeriodStart()` to determine deletion range
+
+#### Step 5b.4: Testing
+**Date:** 2026-01-11
+
+Verified via Database Inspector:
+- ✅ Tap "Done" → 1 row in completion_events
+- ✅ Manual reset → 0 rows (deleted)
+- ✅ Tap "Done" again → 1 row (new timestamp)
+- ✅ tracking_metadata contains tracking_start_date after first Done
+
+**Files Modified:**
+- `util/ResetCalculator.kt` - Added `calculateCurrentPeriodStart()`
+- `widget/MarkDoneAction.kt` - Added DB insert + tracking start date
+- `ui/SettingsScreen.kt` - Added DB delete on reset
+
+**Note:** `finalized_days` table remains empty - this is expected. Period finalization (locking in green/red status) is implemented in Phase 5c.
+
+---
+
+### Phase 5c: Period Finalization ✅
+
+#### Step 5c.1: Finalization Logic
+**Date:** 2026-01-11
+
+Added `finalizePeriod()` function to `receiver/ResetAlarmReceiver.kt`:
+- Called when `shouldReset=true` (period boundary crossed)
+- Checks for CompletionEvents in the ending period
+- Writes FinalizedDay records for each day in the period
+- Updates `last_finalized_date` metadata
+
+#### Step 5c.2: Period Boundary Calculation
+**Date:** 2026-01-11
+
+**Challenge:** Calculating the correct time range for the ending period.
+
+**Initial bug:** Using `now` as periodEnd caused issues because the alarm fires slightly after the exact reset time. Events recorded just before reset time were missed.
+
+**Solution:** Calculate period boundaries explicitly:
+```kotlin
+val calendar = Calendar.getInstance().apply {
+    set(Calendar.HOUR_OF_DAY, resetHour)
+    set(Calendar.MINUTE, resetMinute)
+    set(Calendar.SECOND, 0)
+    set(Calendar.MILLISECOND, 0)
+}
+val periodEnd = calendar.timeInMillis  // Today's reset time
+calendar.add(Calendar.DAY_OF_YEAR, -periodDays)
+val periodStart = calendar.timeInMillis  // Yesterday's reset time (for daily)
+```
+
+#### Step 5c.3: Day Count Fix
+**Date:** 2026-01-11
+
+**Bug:** Daily period was finalizing 2 calendar days instead of 1.
+
+**Cause:** Period spans midnight (e.g., 8 PM to 8 PM crosses two calendar days).
+
+**Solution:** Calculate dates based on `periodDays`, not timestamp conversion:
+```kotlin
+val endDate = Instant.ofEpochMilli(periodEnd - 1).atZone(zone).toLocalDate()
+val startDate = endDate.minusDays(periodDays.toLong() - 1)
+```
+
+#### Step 5c.4: Testing
+**Date:** 2026-01-11
+
+Verified via Database Inspector:
+- ✅ Tap "Done", wait for reset → finalized_days has 1 row with completed=1
+- ✅ INSERT IGNORE preserves immutability of already-finalized days
+- ✅ Multi-day period (3 days) → finalized_days has 3 rows with same completed status
+
+**Files Modified:**
+- `receiver/ResetAlarmReceiver.kt` - Added `finalizePeriod()` function
+
+#### Step 5c.5: Logging Cleanup
+**Date:** 2026-01-16
+
+Removed verbose debug logging from receiver classes:
+- `ResetAlarmReceiver.kt` - Removed event dumps and per-widget logging, kept error handling
+- `BootReceiver.kt` - Removed verbose logging, kept error handling
+- `ResetAlarmScheduler.kt` - Kept permission warning and scheduling log (useful for debugging)
+
+---
+
 ## Issues & Resolutions
 
 ### Issue #1: Missing Launcher Icon Resource
@@ -553,4 +719,4 @@ For each increment:
 
 ---
 
-Last Updated: 2026-01-11 (Phase 4.1 complete, ready for Phase 5)
+Last Updated: 2026-01-16 (Phase 5c complete, ready for Phase 5d: Calendar UI)

@@ -340,14 +340,92 @@ Use `INSERT ... ON CONFLICT IGNORE` to ensure finalized days can never be overwr
 
 #### Phase 5 Sub-phases
 
-- **Phase 5a:** Room Database Setup
-- **Phase 5b:** Completion Event Recording & Manual Reset
-- **Phase 5c:** Period Finalization
+- **Phase 5a:** Room Database Setup ✅ Complete
+- **Phase 5b:** Completion Event Recording & Manual Reset ✅ Complete
+- **Phase 5c:** Period Finalization ✅ Complete
 - **Phase 5d:** Calendar UI - Basic
 - **Phase 5e:** Calendar UI - Polish
 - **Phase 5f:** Clear History
 
-See detailed technical TODOs in each sub-phase section of the original planning documents.
+---
+
+#### Phase 5a: Room Database Setup ✅ Complete
+
+**Deliverables:**
+- Room dependencies added (room-runtime, room-ktx, room-compiler via KSP)
+- Three entity classes created per spec
+- DAO interface with CRUD operations
+- Database singleton class
+
+**Files Created:**
+- `data/CompletionEvent.kt` - Entity for "Done" button presses
+- `data/FinalizedDay.kt` - Entity for locked-in day status
+- `data/TrackingMetadata.kt` - Entity for tracking config
+- `data/BigButtonDao.kt` - DAO interface
+- `data/BigButtonDatabase.kt` - Room database + singleton
+
+**Files Modified:**
+- `settings.gradle.kts` - Added KSP plugin
+- `app/build.gradle.kts` - Added KSP plugin + Room dependencies
+
+---
+
+#### Phase 5b: Completion Event Recording & Manual Reset
+
+**Deliverables:**
+- CompletionEvent recorded when user presses "Done"
+- tracking_start_date set on first-ever completion
+- Manual reset deletes completion events from current period (undo behavior)
+- Period start calculation helper for determining current period boundaries
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P5b.1 | Pressing "Done" inserts a CompletionEvent with timestamp and periodDays |
+| P5b.2 | First "Done" press sets tracking_start_date in TrackingMetadata |
+| P5b.3 | Manual reset deletes all CompletionEvents from current period |
+| P5b.4 | Manual reset after period ended does not affect past data |
+
+**Files to Modify:**
+- `util/ResetCalculator.kt` - Add `calculateCurrentPeriodStart()` helper
+- `widget/MarkDoneAction.kt` - Insert CompletionEvent on Done press
+- `ui/SettingsScreen.kt` - Delete current period events on manual reset
+
+**Testing Procedure:**
+1. Tap "Done" → verify 1 CompletionEvent in database
+2. Open settings, tap "Reset" → verify 0 CompletionEvents (deleted)
+3. Tap "Done" again → verify 1 CompletionEvent (new entry)
+
+Use Android Studio's Database Inspector (App Inspection tab) to verify.
+
+---
+
+#### Phase 5c: Period Finalization ✅ Complete
+
+**Deliverables:**
+- When reset alarm fires and a period ends, FinalizedDay records are written
+- All days in the period get the same status (completed or missed)
+- Immutability preserved via INSERT IGNORE
+- last_finalized_date metadata updated
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P5c.1 | Period finalization occurs when reset alarm fires and shouldReset=true |
+| P5c.2 | Finalization writes FinalizedDay for each day in the ending period |
+| P5c.3 | completed=true if CompletionEvents exist in period, false otherwise |
+| P5c.4 | No finalization if tracking hasn't started (no tracking_start_date) |
+| P5c.5 | Already-finalized days are not overwritten (INSERT IGNORE) |
+
+**Files to Modify:**
+- `receiver/ResetAlarmReceiver.kt` - Add finalizePeriod() function and call it when shouldReset=true
+
+**Testing Procedure:**
+1. Set reset time to 2 minutes from now, tap "Done", wait → verify finalized_days has completed=true
+2. Reset widget, wait for period end → verify finalized_days has completed=false (missed)
+3. Set 3-day period, tap "Done", wait → verify 3 FinalizedDay entries
 
 ---
 
@@ -445,3 +523,15 @@ See `bigbutton_mockup.png` for visual reference.
 - Sufficient for current needs (isDone + timestamp)
 
 **Future Migration:** Will migrate to Room database when implementing Phase 5 (History & Calendar).
+
+### Room Database for History
+**Date:** 2026-01-11
+
+**Decision:** Use Room with KSP for history tracking.
+
+**Rationale:**
+- KSP is faster than KAPT for annotation processing
+- Room provides type-safe queries and compile-time verification
+- Sufficient for structured historical data (events, finalized days, metadata)
+
+**Trade-off:** Adds ~1MB to APK size. Acceptable for the functionality gained.
