@@ -672,11 +672,11 @@ CalendarScreen
 
 #### Phase 6 Sub-phases
 
-- **Phase 6a:** Info Tab Instructions
+- **Phase 6a:** Info Tab Instructions ✅ Complete
 
 ---
 
-#### Phase 6a: Info Tab Instructions
+#### Phase 6a: Info Tab Instructions ✅ Complete
 
 **Scope:** Add explanatory instructions to the Info tab to help users understand how to use the widget.
 
@@ -684,7 +684,7 @@ CalendarScreen
 - Clear instructions on how to use the widget
 - Explanation of calendar colors (green = completed, red = missed, grey = in progress)
 - Explanation of period settings
-- Any other helpful guidance
+- Multi-day period behavior explanation
 
 **Requirements:**
 
@@ -694,15 +694,19 @@ CalendarScreen
 | P6a.2 | Calendar color meanings are explained |
 | P6a.3 | Period/reset settings are explained |
 | P6a.4 | Content is scrollable (already implemented) |
+| P6a.5 | Multi-day period behavior explained |
+| P6a.6 | Period finalization explained |
 
-**Files to Modify:**
-- `ui/InfoScreen.kt` - Add instructional content
+**Files Modified:**
+- `ui/InfoScreen.kt` - Added instructional content with sections for How to Use, Calendar Colors, Multi-Day Periods, and When Periods Finalize
 
 **Testing Checklist:**
-- [ ] Instructions are clear and readable
-- [ ] All color meanings explained
-- [ ] Settings behavior explained
-- [ ] Content scrolls properly on small screens
+- [x] Instructions are clear and readable
+- [x] All color meanings explained
+- [x] Settings behavior explained
+- [x] Content scrolls properly on small screens
+- [x] Multi-day period behavior explained with example
+- [x] Period finalization and Clear History mentioned
 
 ---
 

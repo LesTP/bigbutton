@@ -872,6 +872,26 @@ widgetIds.forEach { glanceId ->
 
 ---
 
+### Phase 6a: Info Tab Instructions ✅
+**Date:** 2026-01-18
+
+**Implemented:**
+- Added comprehensive user instructions to the Info tab
+- Four instructional sections: How to Use, Calendar Colors, Multi-Day Periods, When Periods Finalize
+- Helper composables for consistent formatting (SectionHeader, InstructionItem, ColorItem, BulletPoint)
+- Updated footer to "Made by The Moving Finger Studios"
+
+**Content Added:**
+1. **How to Use** - Configure, The Widget, Automatic Reset, Undo Accidental Presses
+2. **Calendar Colors** - Explains green (completed), red (missed), grey (in progress), no color (gaps/future)
+3. **Multi-Day Periods** - Explains how weekly/custom periods work with all days showing same color
+4. **When Periods Finalize** - Explains when status is locked in and how to clear history
+
+**Files Modified:**
+- `ui/InfoScreen.kt` - Added instructional sections and helper composables
+
+---
+
 ## Testing Checklist
 
 For each increment:
@@ -883,4 +903,4 @@ For each increment:
 
 ---
 
-Last Updated: 2026-01-17 (Phase 5g complete - Clear History)
+Last Updated: 2026-01-18 (Phase 6a complete - Info Tab Instructions)
