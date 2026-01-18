@@ -47,22 +47,27 @@ class BigButtonWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
-            // Read state and check if reset is due
+            // Read state (composable call - cannot be in try-catch)
             val prefs = currentState<Preferences>()
             val storedIsDone = prefs[BigButtonStateDefinition.Keys.IS_DONE] ?: false
 
             // Determine display state (check if reset should have happened)
+            // Wrap calculation in try-catch to handle any errors gracefully
             val isDone = if (storedIsDone) {
-                // Check if reset is due - if so, display as "Do" (actual reset on next interaction)
-                val lastChanged = prefs[BigButtonStateDefinition.Keys.LAST_CHANGED] ?: 0L
-                val periodDays = prefs[BigButtonStateDefinition.Keys.PERIOD_DAYS]
-                    ?: BigButtonStateDefinition.DEFAULT_PERIOD_DAYS
-                val resetHour = prefs[BigButtonStateDefinition.Keys.RESET_HOUR]
-                    ?: BigButtonStateDefinition.DEFAULT_RESET_HOUR
-                val resetMinute = prefs[BigButtonStateDefinition.Keys.RESET_MINUTE]
-                    ?: BigButtonStateDefinition.DEFAULT_RESET_MINUTE
+                try {
+                    val lastChanged = prefs[BigButtonStateDefinition.Keys.LAST_CHANGED] ?: 0L
+                    val periodDays = prefs[BigButtonStateDefinition.Keys.PERIOD_DAYS]
+                        ?: BigButtonStateDefinition.DEFAULT_PERIOD_DAYS
+                    val resetHour = prefs[BigButtonStateDefinition.Keys.RESET_HOUR]
+                        ?: BigButtonStateDefinition.DEFAULT_RESET_HOUR
+                    val resetMinute = prefs[BigButtonStateDefinition.Keys.RESET_MINUTE]
+                        ?: BigButtonStateDefinition.DEFAULT_RESET_MINUTE
 
-                !ResetCalculator.shouldReset(lastChanged, periodDays, resetHour, resetMinute)
+                    !ResetCalculator.shouldReset(lastChanged, periodDays, resetHour, resetMinute)
+                } catch (e: Exception) {
+                    // If calculation fails, show as Done (safer default when storedIsDone=true)
+                    true
+                }
             } else {
                 false
             }

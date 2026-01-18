@@ -1,6 +1,7 @@
 package com.example.bigbutton.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.shadow
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -128,10 +130,40 @@ fun CalendarScreen() {
         }.coerceAtLeast(0)
     }
 
-    // Scroll to current week on first load
+    // Scroll so that (current week + 1) aligns to bottom of viewport
+    // This ensures current week is visible with past weeks above and future weeks below
     LaunchedEffect(currentWeekIndex) {
         if (currentWeekIndex > 0) {
-            listState.scrollToItem(currentWeekIndex + 1) // +1 for header
+            // Target item: the week after current week
+            val targetWeekIndex = currentWeekIndex + 1
+
+            // Count month headers before target week (weeks containing the 1st of a month)
+            val monthHeadersBeforeTarget = weeks.take(targetWeekIndex).count { week ->
+                week.any { it.dayOfMonth == 1 }
+            }
+
+            // Actual item index in LazyColumn = week index + month headers
+            val actualTargetItemIndex = targetWeekIndex + monthHeadersBeforeTarget
+
+            // First scroll to target to ensure layout is measured
+            listState.scrollToItem(actualTargetItemIndex)
+
+            // Now adjust to align target to bottom of viewport
+            val layoutInfo = listState.layoutInfo
+            val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+
+            // Calculate average item height from visible items
+            val visibleItems = layoutInfo.visibleItemsInfo
+            if (visibleItems.isNotEmpty()) {
+                val avgItemHeight = visibleItems.map { it.size }.average().toInt()
+                if (avgItemHeight > 0) {
+                    // Calculate how many items fit in viewport
+                    val itemsPerViewport = viewportHeight / avgItemHeight
+                    // Scroll to index that puts target week near bottom
+                    val scrollToIndex = (actualTargetItemIndex - itemsPerViewport + 2).toInt().coerceAtLeast(0)
+                    listState.scrollToItem(scrollToIndex)
+                }
+            }
         }
     }
 
@@ -308,6 +340,8 @@ private fun getDayStatus(
 
 /**
  * Individual day cell with date number and background color.
+ * - Today gets a colored border ring
+ * - In-progress days get a shadow/glow effect
  */
 @Composable
 private fun DayCell(
@@ -329,13 +363,40 @@ private fun DayCell(
         else -> MaterialTheme.colorScheme.onSurface
     }
 
+    val todayBorderColor = MaterialTheme.colorScheme.primary
+
     Box(
         modifier = modifier
             .aspectRatio(1f)
             .padding(2.dp)
+            // Shadow for in-progress days (current period glow)
+            .then(
+                if (status == DayStatus.IN_PROGRESS) {
+                    Modifier.shadow(
+                        elevation = 4.dp,
+                        shape = CircleShape,
+                        ambientColor = ColorInProgress,
+                        spotColor = ColorInProgress
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .background(
                 color = backgroundColor,
                 shape = CircleShape
+            )
+            // Border ring for today
+            .then(
+                if (isToday) {
+                    Modifier.border(
+                        width = 2.dp,
+                        color = todayBorderColor,
+                        shape = CircleShape
+                    )
+                } else {
+                    Modifier
+                }
             ),
         contentAlignment = Alignment.Center
     ) {

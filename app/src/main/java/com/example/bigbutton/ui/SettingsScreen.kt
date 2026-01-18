@@ -1,6 +1,12 @@
 package com.example.bigbutton.ui
 
+import android.app.AlarmManager
 import android.app.TimePickerDialog
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,17 +17,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -58,6 +72,71 @@ private enum class PeriodPreset(val days: Int, val label: String) {
     WEEKLY(7, "Weekly (7 days)"),
     MONTHLY(30, "Monthly (30 days)"),
     CUSTOM(-1, "Custom")
+}
+
+/**
+ * Checks if the exact alarm permission warning should be shown.
+ * Returns true on Android 12+ when permission is not granted.
+ */
+private fun shouldShowPermissionWarning(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        return !alarmManager.canScheduleExactAlarms()
+    }
+    return false
+}
+
+/**
+ * Warning banner for missing exact alarm permission.
+ */
+@Composable
+private fun PermissionWarningBanner(onOpenSettings: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFF3E0) // Light amber/orange
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Warning,
+                    contentDescription = "Warning",
+                    tint = Color(0xFFE65100), // Dark orange
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Permission Required",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color(0xFFE65100)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "BigButton widget requires 'Alarms & reminders' permission to reset automatically. Enable it in system settings.",
+                fontSize = 14.sp,
+                color = Color(0xFF5D4037) // Brown text
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            TextButton(
+                onClick = onOpenSettings,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = Color(0xFFE65100)
+                )
+            ) {
+                Text(
+                    text = "Open Settings",
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
 }
 
 /**
@@ -121,13 +200,31 @@ fun SettingsScreen(onResetComplete: () -> Unit = {}) {
     // Focus requester for custom input field
     val customFocusRequester = remember { FocusRequester() }
 
+    // Check if permission warning should be shown (reactive on resume)
+    val showPermissionWarning = shouldShowPermissionWarning(context)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
+        // Permission warning banner (Android 12+ only)
+        if (showPermissionWarning) {
+            PermissionWarningBanner(
+                onOpenSettings = {
+                    // Open the Alarms & reminders settings page directly
+                    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    }
+                    context.startActivity(intent)
+                }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // Reset section

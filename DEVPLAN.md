@@ -344,8 +344,90 @@ Use `INSERT ... ON CONFLICT IGNORE` to ensure finalized days can never be overwr
 - **Phase 5b:** Completion Event Recording & Manual Reset ✅ Complete
 - **Phase 5c:** Period Finalization ✅ Complete
 - **Phase 5d:** Calendar UI - Basic ✅ Complete
-- **Phase 5e:** Calendar UI - Polish
-- **Phase 5f:** Clear History
+- **Phase 5e:** Permission Warning Banner ✅ Complete
+- **Phase 5f.0:** Calendar Initial Scroll Position ✅ Complete
+- **Phase 5f:** Calendar UI - Polish
+- **Phase 5g:** Clear History
+
+---
+
+#### Phase 5a: Room Database Setup ✅ Complete
+
+**Deliverables:**
+- Room dependencies added (room-runtime, room-ktx, room-compiler via KSP)
+- Three entity classes created per spec
+- DAO interface with CRUD operations
+- Database singleton class
+
+**Files Created:**
+- `data/CompletionEvent.kt` - Entity for "Done" button presses
+- `data/FinalizedDay.kt` - Entity for locked-in day status
+- `data/TrackingMetadata.kt` - Entity for tracking config
+- `data/BigButtonDao.kt` - DAO interface
+- `data/BigButtonDatabase.kt` - Room database + singleton
+
+**Files Modified:**
+- `settings.gradle.kts` - Added KSP plugin
+- `app/build.gradle.kts` - Added KSP plugin + Room dependencies
+
+---
+
+#### Phase 5b: Completion Event Recording & Manual Reset ✅ Complete
+
+**Deliverables:**
+- CompletionEvent recorded when user presses "Done"
+- tracking_start_date set on first-ever completion
+- Manual reset deletes completion events from current period (undo behavior)
+- Period start calculation helper for determining current period boundaries
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P5b.1 | Pressing "Done" inserts a CompletionEvent with timestamp and periodDays |
+| P5b.2 | First "Done" press sets tracking_start_date in TrackingMetadata |
+| P5b.3 | Manual reset deletes all CompletionEvents from current period |
+| P5b.4 | Manual reset after period ended does not affect past data |
+
+**Files to Modify:**
+- `util/ResetCalculator.kt` - Add `calculateCurrentPeriodStart()` helper
+- `widget/MarkDoneAction.kt` - Insert CompletionEvent on Done press
+- `ui/SettingsScreen.kt` - Delete current period events on manual reset
+
+**Testing Procedure:**
+1. Tap "Done" → verify 1 CompletionEvent in database
+2. Open settings, tap "Reset" → verify 0 CompletionEvents (deleted)
+3. Tap "Done" again → verify 1 CompletionEvent (new entry)
+
+Use Android Studio's Database Inspector (App Inspection tab) to verify.
+
+---
+
+#### Phase 5c: Period Finalization ✅ Complete
+
+**Deliverables:**
+- When reset alarm fires and a period ends, FinalizedDay records are written
+- All days in the period get the same status (completed or missed)
+- Immutability preserved via INSERT IGNORE
+- last_finalized_date metadata updated
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P5c.1 | Period finalization occurs when reset alarm fires and shouldReset=true |
+| P5c.2 | Finalization writes FinalizedDay for each day in the ending period |
+| P5c.3 | completed=true if CompletionEvents exist in period, false otherwise |
+| P5c.4 | No finalization if tracking hasn't started (no tracking_start_date) |
+| P5c.5 | Already-finalized days are not overwritten (INSERT IGNORE) |
+
+**Files to Modify:**
+- `receiver/ResetAlarmReceiver.kt` - Add finalizePeriod() function and call it when shouldReset=true
+
+**Testing Procedure:**
+1. Set reset time to 2 minutes from now, tap "Done", wait → verify finalized_days has completed=true
+2. Reset widget, wait for period end → verify finalized_days has completed=false (missed)
+3. Set 3-day period, tap "Done", wait → verify 3 FinalizedDay entries
 
 ---
 
@@ -430,83 +512,148 @@ CalendarScreen
 
 ---
 
-#### Phase 5a: Room Database Setup ✅ Complete
+#### Phase 5e: Permission Warning Banner ✅ Complete
+
+**Scope:** Add a persistent warning banner to the Settings tab that appears when the exact alarm permission is not granted on Android 12+ devices.
 
 **Deliverables:**
-- Room dependencies added (room-runtime, room-ktx, room-compiler via KSP)
-- Three entity classes created per spec
-- DAO interface with CRUD operations
-- Database singleton class
-
-**Files Created:**
-- `data/CompletionEvent.kt` - Entity for "Done" button presses
-- `data/FinalizedDay.kt` - Entity for locked-in day status
-- `data/TrackingMetadata.kt` - Entity for tracking config
-- `data/BigButtonDao.kt` - DAO interface
-- `data/BigButtonDatabase.kt` - Room database + singleton
-
-**Files Modified:**
-- `settings.gradle.kts` - Added KSP plugin
-- `app/build.gradle.kts` - Added KSP plugin + Room dependencies
-
----
-
-#### Phase 5b: Completion Event Recording & Manual Reset
-
-**Deliverables:**
-- CompletionEvent recorded when user presses "Done"
-- tracking_start_date set on first-ever completion
-- Manual reset deletes completion events from current period (undo behavior)
-- Period start calculation helper for determining current period boundaries
+- Warning banner at top of Settings tab
+- Permission check using `AlarmManager.canScheduleExactAlarms()`
+- Button to open system's "Alarms & reminders" settings page
 
 **Requirements:**
 
 | ID | Requirement |
 |----|-------------|
-| P5b.1 | Pressing "Done" inserts a CompletionEvent with timestamp and periodDays |
-| P5b.2 | First "Done" press sets tracking_start_date in TrackingMetadata |
-| P5b.3 | Manual reset deletes all CompletionEvents from current period |
-| P5b.4 | Manual reset after period ended does not affect past data |
+| P5e.1 | Banner displays at top of Settings tab when `canScheduleExactAlarms()` returns false |
+| P5e.2 | Banner only appears on Android 12+ (API 31+) devices |
+| P5e.3 | Banner displays warning icon, explanatory text, and "Open Settings" button |
+| P5e.4 | Button opens `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` (direct to Alarms & reminders page) |
+| P5e.5 | Banner automatically hides when permission is granted (reactive) |
+| P5e.6 | Banner does not appear when permission is already granted |
+| P5e.7 | Banner uses warning color scheme (amber/orange) to draw attention |
+
+**Design:**
+- Text: "BigButton widget requires 'Alarms & reminders' permission to reset automatically. Enable it in system settings."
+- Button: "Open Settings" → opens `Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM`
+- Color: Warning/amber background for visibility
 
 **Files to Modify:**
-- `util/ResetCalculator.kt` - Add `calculateCurrentPeriodStart()` helper
-- `widget/MarkDoneAction.kt` - Insert CompletionEvent on Done press
-- `ui/SettingsScreen.kt` - Delete current period events on manual reset
+- `ui/SettingsScreen.kt` - Add permission check and warning banner composable
 
-**Testing Procedure:**
-1. Tap "Done" → verify 1 CompletionEvent in database
-2. Open settings, tap "Reset" → verify 0 CompletionEvents (deleted)
-3. Tap "Done" again → verify 1 CompletionEvent (new entry)
-
-Use Android Studio's Database Inspector (App Inspection tab) to verify.
+**Testing Checklist:**
+- [ ] Banner appears on Android 12+ emulator/device without permission
+- [ ] Banner does NOT appear on Android 11 or lower
+- [ ] Banner does NOT appear when permission is granted
+- [ ] "Open Settings" button opens system Alarms & reminders page
+- [ ] Banner disappears after granting permission and returning to app
+- [ ] Banner styling is visible and readable (warning colors)
+- [ ] Settings content remains scrollable with banner present
 
 ---
 
-#### Phase 5c: Period Finalization ✅ Complete
+#### Phase 5f.0: Calendar Initial Scroll Position ✅ Complete
+
+**Scope:** Fix calendar scroll position so the current week appears in the lower portion of the screen, with past weeks visible above and future weeks below.
+
+**Problem:** Currently the calendar scrolls to put the current week at the top of the viewport. On smaller screens, this pushes the current and future weeks below the visible area, showing only old past weeks.
 
 **Deliverables:**
-- When reset alarm fires and a period ends, FinalizedDay records are written
-- All days in the period get the same status (completed or missed)
-- Immutability preserved via INSERT IGNORE
-- last_finalized_date metadata updated
+- Calendar opens with current week visible in lower portion of screen
+- Past weeks visible above current week
+- Future weeks (at least 1-2) visible below current week
 
 **Requirements:**
 
 | ID | Requirement |
 |----|-------------|
-| P5c.1 | Period finalization occurs when reset alarm fires and shouldReset=true |
-| P5c.2 | Finalization writes FinalizedDay for each day in the ending period |
-| P5c.3 | completed=true if CompletionEvents exist in period, false otherwise |
-| P5c.4 | No finalization if tracking hasn't started (no tracking_start_date) |
-| P5c.5 | Already-finalized days are not overwritten (INSERT IGNORE) |
+| P5f0.1 | On calendar open, (current week + 1) aligns to bottom of viewport |
+| P5f0.2 | Current week is visible just above the bottom |
+| P5f0.3 | Past weeks fill the area above current week |
+| P5f0.4 | At least 1 future week visible at bottom |
+
+**Design:**
+- Use `LazyListState.layoutInfo` to calculate viewport height
+- Scroll to position where (currentWeek + 1) item aligns to viewport bottom edge
+- Two-step scroll: first scroll to target item, then adjust offset based on layout measurements
 
 **Files to Modify:**
-- `receiver/ResetAlarmReceiver.kt` - Add finalizePeriod() function and call it when shouldReset=true
+- `ui/CalendarScreen.kt` - Modify `LaunchedEffect` scroll logic
 
-**Testing Procedure:**
-1. Set reset time to 2 minutes from now, tap "Done", wait → verify finalized_days has completed=true
-2. Reset widget, wait for period end → verify finalized_days has completed=false (missed)
-3. Set 3-day period, tap "Done", wait → verify 3 FinalizedDay entries
+**Testing Checklist:**
+- [ ] Current week visible on calendar open (not scrolled off bottom)
+- [ ] At least 1 future week visible below current week
+- [ ] Past weeks visible above current week
+- [ ] Works on small screens (Pixel 2 size)
+- [ ] Works on larger screens
+
+---
+
+#### Phase 5f: Calendar UI - Polish
+
+**Scope:** Add visual enhancements to distinguish today and the current in-progress period.
+
+**Deliverables:**
+- Border ring around today's date cell
+- Shadow/glow effect on in-progress period days (grey cells)
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P5f.1 | Today's cell displays a colored border ring |
+| P5f.2 | Border visible regardless of day status (green/red/grey/transparent) |
+| P5f.3 | In-progress period days display shadow/elevation effect |
+| P5f.4 | Shadow applies to all days in current period (multi-day support) |
+| P5f.5 | No shadow on finalized days (green/red) |
+| P5f.6 | No shadow on future or no-data days |
+
+**Design:**
+- Today border: 2dp stroke, primary/accent color
+- In-progress shadow: 4-6dp elevation via `Modifier.shadow()`
+
+**Files to Modify:**
+- `ui/CalendarScreen.kt` - Modify `DayCell` composable
+
+**Testing Checklist:**
+- [ ] Today shows border ring
+- [ ] Border visible on all background colors (green/red/grey/transparent)
+- [ ] In-progress days have shadow/glow
+- [ ] Multi-day period: all grey days have shadow
+- [ ] Finalized days (green/red) have no shadow
+- [ ] Future days have no shadow
+
+---
+
+#### Phase 5g: Clear History
+
+**Scope:** Add option to clear all tracking history data.
+
+**Deliverables:**
+- "Clear History" button in Settings
+- Confirmation dialog before clearing
+- Clears all Room database tables (completion_events, finalized_days, tracking_metadata)
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P5g.1 | Settings displays "Clear History" button |
+| P5g.2 | Tapping button shows confirmation dialog |
+| P5g.3 | Confirming clears all tracking data from database |
+| P5g.4 | Calendar shows empty state after clearing |
+| P5g.5 | Widget state (isDone) is NOT affected by clear |
+
+**Files to Modify:**
+- `ui/SettingsScreen.kt` - Add clear history button and confirmation dialog
+
+**Testing Checklist:**
+- [ ] Clear History button appears in Settings
+- [ ] Confirmation dialog appears on tap
+- [ ] Canceling dialog does not clear data
+- [ ] Confirming clears all history
+- [ ] Calendar shows no colored days after clear
+- [ ] Widget continues to function normally
 
 ---
 
@@ -516,6 +663,7 @@ Use Android Studio's Database Inspector (App Inspection tab) to verify.
 - Notifications/reminders
 - Data export/import
 - Widget size variations (2x1, 2x2)
+- **TODO:** Fix settings gear overlapping with button on squeezed/non-square widget cells (some launchers/screen resolutions cause the button to take up more visual space, leaving no room for the gear icon)
 
 ---
 

@@ -751,6 +751,83 @@ widgetIds.forEach { glanceId ->
 
 ---
 
+### Issue #7: Widget "Can't load" on Android 12 Physical Device
+**Date:** 2026-01-17 | **Severity:** Critical | **Status:** Resolved
+
+**Problem:** Widget displayed "Can't load widget" error on Android 12 physical device. Widget worked in emulator but failed on real hardware.
+
+**Root Cause:** `ResetAlarmScheduler.scheduleImmediateCheck()` was missing the Android 12+ exact alarm permission check. When widget was first added, `BigButtonWidgetReceiver.onEnabled()` called this method, which attempted to schedule an exact alarm without permission. This threw a `SecurityException`, crashing widget initialization before `provideGlance()` could render the UI.
+
+**Solution:**
+1. Added `canScheduleExactAlarms()` permission check to `scheduleImmediateCheck()` (matching the existing check in `scheduleNextReset()`)
+2. Added try-catch wrapper in `BigButtonWidgetReceiver.onEnabled()` and `onDisabled()`
+3. Added try-catch around state reading in `BigButtonWidget.provideGlance()` for additional resilience
+
+**Files Modified:**
+- `receiver/ResetAlarmScheduler.kt`
+- `widget/BigButtonWidgetReceiver.kt`
+- `widget/BigButtonWidget.kt`
+
+**Lesson:** All AlarmManager exact alarm methods (`setExact`, `setExactAndAllowWhileIdle`, etc.) require the `SCHEDULE_EXACT_ALARM` permission check on Android 12+. This applies to *all* scheduling calls, not just the primary ones. Widget initialization code must be wrapped in try-catch to prevent complete widget failure.
+
+---
+
+### Issue #8: Settings Tab Content Cut Off on Small Screens
+**Date:** 2026-01-17 | **Severity:** Medium | **Status:** Resolved
+
+**Problem:** On physical device with smaller screen, the Settings tab content was cut off below the "Reset Time" label. Users could not access the time picker button.
+
+**Root Cause:** `SettingsScreen` used a `Column` with `fillMaxSize()` but no scroll modifier. Content exceeding screen height was simply clipped.
+
+**Solution:** Added `verticalScroll(rememberScrollState())` modifier to the Column in `SettingsScreen.kt`.
+
+**Files Modified:**
+- `ui/SettingsScreen.kt`
+
+**Lesson:** Always make settings/form screens scrollable, even if content fits on test devices. Physical devices have varying screen sizes, and system UI elements (navigation bar, status bar) reduce available space.
+
+---
+
+## Phase Completion Log
+
+### Phase 5e: Permission Warning Banner ✅
+**Date:** 2026-01-17
+
+**Implemented:**
+- Added `shouldShowPermissionWarning()` function to check Android 12+ exact alarm permission
+- Created `PermissionWarningBanner` composable with amber/warning styling
+- Banner displays at top of Settings tab when permission not granted
+- "Open Settings" button opens `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` directly to Alarms & reminders page
+- Banner auto-hides when permission is granted (reactive on recomposition)
+- Removed redundant Permissions section from Info tab
+- Made Info tab scrollable for future content additions
+
+**Files Modified:**
+- `ui/SettingsScreen.kt` - Added permission check and warning banner
+- `ui/InfoScreen.kt` - Removed Permissions section, added verticalScroll
+
+---
+
+### Phase 5f.0: Calendar Initial Scroll Position ✅
+**Date:** 2026-01-17
+
+**Problem:** Calendar opened with current week at the top of viewport. On smaller screens, this pushed present and future weeks below the visible area, showing only old past weeks.
+
+**Root Cause:** The scroll index calculation used the week index from the `weeks` list directly, but the LazyColumn also contains month header items interspersed between weeks. With ~12 month headers over a year, the actual item index was off by 12.
+
+**Solution:**
+- Count month headers before target week (weeks containing the 1st of a month)
+- Calculate actual LazyColumn item index = weekIndex + monthHeaders
+- Scroll to position that aligns (current week + 1) near bottom of viewport
+- Uses viewport height and average item height to calculate optimal scroll position
+
+**Files Modified:**
+- `ui/CalendarScreen.kt` - Fixed scroll calculation in LaunchedEffect
+
+**Lesson:** When using LazyColumn with heterogeneous items (weeks + month headers), item indices in the data list don't match LazyColumn item indices. Must account for all item types when calculating scroll positions.
+
+---
+
 ## Testing Checklist
 
 For each increment:
@@ -762,4 +839,4 @@ For each increment:
 
 ---
 
-Last Updated: 2026-01-16 (Phase 5d complete, ready for Phase 5e: Calendar UI Polish)
+Last Updated: 2026-01-17 (Phase 5f.0 complete - Calendar Initial Scroll Position)

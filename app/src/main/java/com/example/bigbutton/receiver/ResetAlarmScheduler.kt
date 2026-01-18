@@ -48,9 +48,19 @@ object ResetAlarmScheduler {
 
     /**
      * Schedules an immediate alarm (for initial check on app/widget start).
+     * Returns true if alarm was scheduled, false if permission denied.
      */
-    fun scheduleImmediateCheck(context: Context) {
+    fun scheduleImmediateCheck(context: Context): Boolean {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+        // Check permission on Android 12+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!alarmManager.canScheduleExactAlarms()) {
+                Log.w(TAG, "Cannot schedule immediate check - exact alarm permission not granted")
+                return false
+            }
+        }
+
         val intent = createAlarmIntent(context)
 
         // Schedule for 1 second from now
@@ -61,6 +71,7 @@ object ResetAlarmScheduler {
             triggerTime,
             intent
         )
+        return true
     }
 
     /**
