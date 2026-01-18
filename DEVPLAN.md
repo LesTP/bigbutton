@@ -346,8 +346,8 @@ Use `INSERT ... ON CONFLICT IGNORE` to ensure finalized days can never be overwr
 - **Phase 5d:** Calendar UI - Basic ✅ Complete
 - **Phase 5e:** Permission Warning Banner ✅ Complete
 - **Phase 5f.0:** Calendar Initial Scroll Position ✅ Complete
-- **Phase 5f:** Calendar UI - Polish
-- **Phase 5g:** Clear History
+- **Phase 5f:** Calendar UI - Polish ✅ Complete
+- **Phase 5g:** Clear History ✅ Complete
 
 ---
 
@@ -589,13 +589,12 @@ CalendarScreen
 
 ---
 
-#### Phase 5f: Calendar UI - Polish
+#### Phase 5f: Calendar UI - Polish ✅ Complete
 
-**Scope:** Add visual enhancements to distinguish today and the current in-progress period.
+**Scope:** Add visual enhancements to distinguish today in the calendar.
 
 **Deliverables:**
 - Border ring around today's date cell
-- Shadow/glow effect on in-progress period days (grey cells)
 
 **Requirements:**
 
@@ -603,34 +602,27 @@ CalendarScreen
 |----|-------------|
 | P5f.1 | Today's cell displays a colored border ring |
 | P5f.2 | Border visible regardless of day status (green/red/grey/transparent) |
-| P5f.3 | In-progress period days display shadow/elevation effect |
-| P5f.4 | Shadow applies to all days in current period (multi-day support) |
-| P5f.5 | No shadow on finalized days (green/red) |
-| P5f.6 | No shadow on future or no-data days |
 
 **Design:**
 - Today border: 2dp stroke, primary/accent color
-- In-progress shadow: 4-6dp elevation via `Modifier.shadow()`
 
-**Files to Modify:**
-- `ui/CalendarScreen.kt` - Modify `DayCell` composable
+**Files Modified:**
+- `ui/CalendarScreen.kt` - `DayCell` composable (implemented in Phase 5d)
 
 **Testing Checklist:**
-- [ ] Today shows border ring
-- [ ] Border visible on all background colors (green/red/grey/transparent)
-- [ ] In-progress days have shadow/glow
-- [ ] Multi-day period: all grey days have shadow
-- [ ] Finalized days (green/red) have no shadow
-- [ ] Future days have no shadow
+- [x] Today shows border ring
+- [x] Border visible on all background colors (green/red/grey/transparent)
+
+**Note:** Shadow/glow effect for in-progress days was removed from requirements - effect was too subtle to be reliably visible across devices.
 
 ---
 
-#### Phase 5g: Clear History
+#### Phase 5g: Clear History ✅ Complete
 
 **Scope:** Add option to clear all tracking history data.
 
 **Deliverables:**
-- "Clear History" button in Settings
+- "Clear History" button in Calendar tab (fixed footer)
 - Confirmation dialog before clearing
 - Clears all Room database tables (completion_events, finalized_days, tracking_metadata)
 
@@ -638,22 +630,79 @@ CalendarScreen
 
 | ID | Requirement |
 |----|-------------|
-| P5g.1 | Settings displays "Clear History" button |
+| P5g.1 | Calendar tab displays "Clear History" button in fixed footer |
 | P5g.2 | Tapping button shows confirmation dialog |
 | P5g.3 | Confirming clears all tracking data from database |
 | P5g.4 | Calendar shows empty state after clearing |
 | P5g.5 | Widget state (isDone) is NOT affected by clear |
+| P5g.6 | Settings (period, reset time) preserved after clear |
+
+**Design:**
+- Button placement: Fixed footer below the calendar LazyColumn
+- Button style: Destructive (red/error color)
+- Dialog title: "Clear History?"
+- Dialog message: "This will permanently delete all tracking data. The calendar will be empty. This cannot be undone."
+- Dialog buttons: "Cancel" / "Clear"
+
+**What gets cleared:**
+- `completion_events` table (all records)
+- `finalized_days` table (all records)
+- `tracking_metadata` table (tracking_start_date, last_finalized_date)
+
+**What stays:**
+- Widget state (isDone) - stored in DataStore
+- Settings (period, reset time) - stored in DataStore
 
 **Files to Modify:**
-- `ui/SettingsScreen.kt` - Add clear history button and confirmation dialog
+- `ui/CalendarScreen.kt` - Add fixed footer with clear history button and confirmation dialog
+- `data/BigButtonDao.kt` - Add clearAllHistory() function
 
 **Testing Checklist:**
-- [ ] Clear History button appears in Settings
+- [ ] Clear History button appears in Calendar tab footer
 - [ ] Confirmation dialog appears on tap
 - [ ] Canceling dialog does not clear data
 - [ ] Confirming clears all history
 - [ ] Calendar shows no colored days after clear
 - [ ] Widget continues to function normally
+- [ ] Settings (period, reset time) preserved after clear
+
+---
+
+### Phase 6: User Documentation
+
+#### Phase 6 Sub-phases
+
+- **Phase 6a:** Info Tab Instructions
+
+---
+
+#### Phase 6a: Info Tab Instructions
+
+**Scope:** Add explanatory instructions to the Info tab to help users understand how to use the widget.
+
+**Deliverables:**
+- Clear instructions on how to use the widget
+- Explanation of calendar colors (green = completed, red = missed, grey = in progress)
+- Explanation of period settings
+- Any other helpful guidance
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P6a.1 | Info tab displays clear usage instructions |
+| P6a.2 | Calendar color meanings are explained |
+| P6a.3 | Period/reset settings are explained |
+| P6a.4 | Content is scrollable (already implemented) |
+
+**Files to Modify:**
+- `ui/InfoScreen.kt` - Add instructional content
+
+**Testing Checklist:**
+- [ ] Instructions are clear and readable
+- [ ] All color meanings explained
+- [ ] Settings behavior explained
+- [ ] Content scrolls properly on small screens
 
 ---
 

@@ -6,23 +6,31 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.shadow
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -66,6 +74,13 @@ private enum class DayStatus {
 fun CalendarScreen() {
     val context = LocalContext.current
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    // State for confirmation dialog
+    var showClearDialog by remember { mutableStateOf(false) }
+
+    // Trigger to reload data after clearing
+    var reloadTrigger by remember { mutableIntStateOf(0) }
 
     // Load settings from DataStore
     val periodDays by context.dataStore.data
@@ -91,8 +106,8 @@ fun CalendarScreen() {
     val endDate = today.plusWeeks(WEEKS_AFTER.toLong())
         .with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY))
 
-    // Load database data
-    LaunchedEffect(Unit) {
+    // Load database data (reloads when reloadTrigger changes)
+    LaunchedEffect(reloadTrigger) {
         val db = BigButtonDatabase.getDatabase(context)
         val dao = db.bigButtonDao()
 
@@ -167,6 +182,39 @@ fun CalendarScreen() {
         }
     }
 
+    // Confirmation dialog for clearing history
+    if (showClearDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            title = { Text("Clear History?") },
+            text = {
+                Text("This will permanently delete all tracking data. The calendar will be empty. This cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            val db = BigButtonDatabase.getDatabase(context)
+                            db.bigButtonDao().clearAllHistory()
+                            reloadTrigger++
+                            showClearDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Clear")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -178,7 +226,9 @@ fun CalendarScreen() {
         // Scrollable calendar
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
         ) {
             weeks.forEachIndexed { index, week ->
                 // Add month header if this week starts a new month
@@ -207,6 +257,20 @@ fun CalendarScreen() {
                 }
             }
         }
+
+        // Fixed footer with Clear History button
+        Divider()
+        Spacer(modifier = Modifier.height(8.dp))
+        TextButton(
+            onClick = { showClearDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = MaterialTheme.colorScheme.error
+            )
+        ) {
+            Text("Clear History")
+        }
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
@@ -340,8 +404,7 @@ private fun getDayStatus(
 
 /**
  * Individual day cell with date number and background color.
- * - Today gets a colored border ring
- * - In-progress days get a shadow/glow effect
+ * Today gets a colored border ring for visibility.
  */
 @Composable
 private fun DayCell(
@@ -369,19 +432,6 @@ private fun DayCell(
         modifier = modifier
             .aspectRatio(1f)
             .padding(2.dp)
-            // Shadow for in-progress days (current period glow)
-            .then(
-                if (status == DayStatus.IN_PROGRESS) {
-                    Modifier.shadow(
-                        elevation = 4.dp,
-                        shape = CircleShape,
-                        ambientColor = ColorInProgress,
-                        spotColor = ColorInProgress
-                    )
-                } else {
-                    Modifier
-                }
-            )
             .background(
                 color = backgroundColor,
                 shape = CircleShape

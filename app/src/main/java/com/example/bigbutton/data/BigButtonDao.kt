@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 
 @Dao
 interface BigButtonDao {
@@ -52,12 +53,14 @@ interface BigButtonDao {
 
     // ===== Clear All History =====
 
-    @Query("DELETE FROM completion_events")
-    suspend fun clearCompletionEvents()
-
-    @Query("DELETE FROM finalized_days")
-    suspend fun clearFinalizedDays()
-
-    @Query("DELETE FROM tracking_metadata")
-    suspend fun clearMetadata()
+    /**
+     * Clears all tracking history data in a single transaction.
+     * Does not affect widget state or settings (stored in DataStore).
+     */
+    @Transaction
+    suspend fun clearAllHistory() {
+        deleteAllCompletionEvents()
+        deleteAllFinalizedDays()
+        deleteAllMetadata()
+    }
 }

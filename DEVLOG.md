@@ -828,6 +828,50 @@ widgetIds.forEach { glanceId ->
 
 ---
 
+### Phase 5f: Calendar UI - Polish ✅
+**Date:** 2026-01-17
+
+**Implemented:**
+- Today's date cell displays a colored border ring (2dp, primary color)
+- Border visible regardless of day status (green/red/grey/transparent)
+- Today's date number displayed in bold
+
+**Removed from requirements:**
+- Shadow/glow effect for in-progress days - effect was too subtle to be reliably visible across devices
+
+**Files Modified:**
+- `ui/CalendarScreen.kt` - Removed shadow code, kept today border
+
+**Note:** Today border was already implemented during Phase 5d. This phase simplified the requirements by removing the shadow feature.
+
+---
+
+### Phase 5g: Clear History ✅
+**Date:** 2026-01-17
+
+**Implemented:**
+- "Clear History" button in Calendar tab fixed footer (red/error color)
+- Confirmation dialog with warning message before clearing
+- `clearAllHistory()` function in BigButtonDao using @Transaction
+- Data reload trigger after clearing to refresh calendar view
+
+**What gets cleared:**
+- `completion_events` table (all records)
+- `finalized_days` table (all records)
+- `tracking_metadata` table (tracking_start_date, last_finalized_date)
+
+**What stays:**
+- Widget state (isDone) - stored in DataStore
+- Settings (period, reset time) - stored in DataStore
+
+**Files Modified:**
+- `data/BigButtonDao.kt` - Added clearAllHistory() transaction function
+- `ui/CalendarScreen.kt` - Added fixed footer with button, confirmation dialog, reload trigger
+
+**Design Decision:** Placed Clear History button in Calendar tab (not Settings) because it directly affects the calendar data - more contextually relevant for users viewing their history.
+
+---
+
 ## Testing Checklist
 
 For each increment:
@@ -839,4 +883,4 @@ For each increment:
 
 ---
 
-Last Updated: 2026-01-17 (Phase 5f.0 complete - Calendar Initial Scroll Position)
+Last Updated: 2026-01-17 (Phase 5g complete - Clear History)
