@@ -374,7 +374,7 @@ fun SettingsScreen(onResetComplete: () -> Unit = {}) {
                                     }
                                 },
                                 modifier = Modifier
-                                    .widthIn(min = 56.dp, max = 72.dp)
+                                    .widthIn(min = 56.dp, max = 88.dp)
                                     .focusRequester(customFocusRequester),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 singleLine = true,

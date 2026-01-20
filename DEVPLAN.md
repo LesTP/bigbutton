@@ -695,8 +695,8 @@ CalendarScreen
 | P5h.3 | Existing functionality unchanged |
 
 **Design:**
-- Replace `Modifier.width(70.dp)` with `Modifier.widthIn(min = 56.dp, max = 72.dp)` on the OutlinedTextField
-- This constrains the TextField to a reasonable size range - wide enough for 2-digit input but not excessively wide
+- Replace `Modifier.width(70.dp)` with `Modifier.widthIn(min = 56.dp, max = 88.dp)` on the OutlinedTextField
+- This constrains the TextField to a reasonable size range - wide enough for placeholder "1-90" to display on one line, but not excessively wide
 
 **Files Modified:**
 - `ui/SettingsScreen.kt` - Changed OutlinedTextField modifier in Custom row

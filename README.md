@@ -11,9 +11,9 @@ A simple habit tracking Android widget. Track whether you've done something toda
 
 ## Current Status
 
-- **Phase:** 5e - Calendar UI (polish)
-- **Focus:** Visual refinements to calendar display
-- **What works:** Full widget functionality, auto-reset, Room database with history tracking, calendar view with day coloring (green/red/grey)
+- **Phase:** Release Ready (v1.0)
+- **Focus:** All core features complete
+- **What works:** Full widget functionality, auto-reset, Room database with history tracking, calendar view with day coloring, user documentation, responsive UI for small screens
 - **Blocked/Broken:** None
 
 ## Requirements
