@@ -676,6 +676,79 @@ CalendarScreen
 
 ---
 
+#### Phase 5h: Settings UI - Small Screen Fix ✅ Complete
+
+**Scope:** Fix the Custom period selector row in Settings to fit on smaller screens without wrapping to two lines.
+
+**Problem:** On smaller hardware screens, the Custom row (RadioButton + "Custom: " + TextField + "days") wraps to two lines even though there is available horizontal space after "days". The TextField uses a fixed `width(70.dp)` instead of adapting to available space.
+
+**Deliverables:**
+- Custom period row displays on a single line on all screen sizes
+- TextField constrained to reasonable size range
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P5h.1 | Custom row displays on a single line on small screens |
+| P5h.2 | TextField adapts to available width (not fixed 70.dp) |
+| P5h.3 | Existing functionality unchanged |
+
+**Design:**
+- Replace `Modifier.width(70.dp)` with `Modifier.widthIn(min = 56.dp, max = 72.dp)` on the OutlinedTextField
+- This constrains the TextField to a reasonable size range - wide enough for 2-digit input but not excessively wide
+
+**Files Modified:**
+- `ui/SettingsScreen.kt` - Changed OutlinedTextField modifier in Custom row
+
+**Testing Checklist:**
+- [x] Custom row displays on single line on small screen device
+- [x] TextField input still works correctly
+- [x] Number validation (1-90) still works
+- [x] Visual appearance acceptable on larger screens
+
+---
+
+#### Phase 5i: Widget Text Scaling for Small Screens ✅ Complete
+
+**Scope:** Fix the widget button text ("Do"/"Done!") being clipped/squished on smaller screens or higher density displays.
+
+**Problem:** The widget uses fixed sizes (button: 52.dp, border: 60.dp, font: 18.sp). On smaller screens or higher density displays, the text doesn't fit properly inside the button.
+
+**Deliverables:**
+- Widget text scales proportionally with available widget size
+- Button and border sizes adapt to widget dimensions
+- Text remains readable on all screen sizes
+
+**Requirements:**
+
+| ID | Requirement |
+|----|-------------|
+| P5i.1 | Widget text scales proportionally with widget size |
+| P5i.2 | Button and border scale proportionally |
+| P5i.3 | Widget remains visually correct on larger screens |
+| P5i.4 | Settings icon positioning adapts appropriately |
+
+**Design:**
+- Enable `SizeMode.Exact` to allow `LocalSize` to return actual widget dimensions
+- Use `LocalSize.current` to get the widget's actual dimensions
+- Calculate scale factor based on the smaller dimension (min of width/height)
+- Base size assumption: 70.dp minimum dimension for scale factor 1.0
+- Scale factor clamped between 0.6 and 1.5 to prevent extreme scaling
+- Apply scale to: button size (52.dp), border size (60.dp), font size (15.sp base), settings icon (16.dp), icon padding (8.dp)
+- Reduced base font from 18.sp to 15.sp to better fit within button on high-density small screens
+
+**Files Modified:**
+- `widget/BigButtonWidget.kt` - Added SizeMode.Exact, LocalSize-based responsive sizing, reduced base font
+
+**Testing Checklist:**
+- [x] Text fits inside button on small screen device
+- [x] Widget looks correct on larger screens
+- [x] "Do" and "Done!" both display properly
+- [x] Settings icon remains visible and tappable
+
+---
+
 #### Phase 6a: Info Tab Instructions ✅ Complete
 
 **Scope:** Add explanatory instructions to the Info tab to help users understand how to use the widget.

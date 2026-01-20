@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -373,7 +374,7 @@ fun SettingsScreen(onResetComplete: () -> Unit = {}) {
                                     }
                                 },
                                 modifier = Modifier
-                                    .width(70.dp)
+                                    .widthIn(min = 56.dp, max = 72.dp)
                                     .focusRequester(customFocusRequester),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 singleLine = true,

@@ -892,6 +892,68 @@ widgetIds.forEach { glanceId ->
 
 ---
 
+### Phase 5h: Settings UI - Small Screen Fix ✅
+**Date:** 2026-01-19
+
+**Problem:** On smaller hardware screens, the Custom period selector row (RadioButton + "Custom:" + TextField + "days") wrapped to two lines, even though there was available horizontal space after "days".
+
+**Root Cause:** The OutlinedTextField used a fixed `width(70.dp)` which didn't adapt to available space. The Row didn't properly utilize the full width.
+
+**Solution:**
+- Changed `Modifier.width(70.dp)` to `Modifier.widthIn(min = 56.dp, max = 72.dp)`
+- This constrains the TextField to a reasonable size range while allowing it to fit on smaller screens
+
+**Files Modified:**
+- `ui/SettingsScreen.kt` - Changed OutlinedTextField modifier
+
+**Lesson:** Avoid fixed widths for form elements that need to work across screen sizes. Use `widthIn()` to constrain to a reasonable range.
+
+---
+
+### Phase 5i: Widget Text Scaling for Small Screens ✅
+**Date:** 2026-01-19
+
+**Problem:** The widget button text ("Done!") was clipped/squished on smaller screens or higher density displays. The widget used fixed sizes (button: 52.dp, border: 60.dp, font: 18.sp) that didn't adapt to widget dimensions.
+
+**Investigation:**
+1. Initial attempt with `LocalSize.current` didn't work - returned default values
+2. Discovered that `SizeMode.Exact` must be enabled for `LocalSize` to return actual widget dimensions
+3. After enabling SizeMode.Exact, scaling worked but text still didn't fit
+4. Root cause: `sp` and `dp` scale differently based on screen density; 18sp was too large relative to button size on high-density small screens
+
+**Solution:**
+1. Added `override val sizeMode = SizeMode.Exact` to enable accurate size reporting
+2. Use `LocalSize.current` to get actual widget dimensions
+3. Calculate scale factor from smaller dimension: `(minDimension / 70f).coerceIn(0.6f, 1.5f)`
+4. Apply proportional scaling to all elements: border, button, font, icon, padding
+5. Reduced base font from 18.sp to 15.sp to fit within button on high-density screens
+
+**Files Modified:**
+- `widget/BigButtonWidget.kt` - Added SizeMode import, sizeMode override, LocalSize-based scaling
+
+**Key Code:**
+```kotlin
+override val sizeMode = SizeMode.Exact
+
+// In BigButtonContent:
+val size = LocalSize.current
+val minDimension = min(size.width.value, size.height.value)
+val scale = (minDimension / 70f).coerceIn(0.6f, 1.5f)
+
+val borderSize = (60 * scale).dp
+val buttonSize = (52 * scale).dp
+val fontSize = (15 * scale).sp  // Reduced from 18sp
+val iconSize = (16 * scale).dp
+val iconPadding = (8 * scale).dp
+```
+
+**Lesson:**
+1. Glance widgets need `SizeMode.Exact` for `LocalSize` to return actual dimensions
+2. `sp` (scaled pixels for text) and `dp` (density-independent pixels) don't maintain the same ratio across different screen densities
+3. When text must fit within a fixed UI element, the font size may need to be smaller than visually ideal to account for high-density displays
+
+---
+
 ## Testing Checklist
 
 For each increment:
@@ -903,4 +965,4 @@ For each increment:
 
 ---
 
-Last Updated: 2026-01-18 (Phase 6a complete - Info Tab Instructions)
+Last Updated: 2026-01-19 (Phase 5h, 5i complete - Small screen fixes for Settings and Widget)

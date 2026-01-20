@@ -12,17 +12,20 @@ import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
 import androidx.glance.currentState
+import androidx.glance.LocalSize
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
+import kotlin.math.min
 import androidx.glance.state.GlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -34,6 +37,9 @@ import com.example.bigbutton.util.ResetCalculator
 class BigButtonWidget : GlanceAppWidget() {
 
     override val stateDefinition: GlanceStateDefinition<*> = BigButtonStateDefinition
+
+    // Enable exact size mode so LocalSize returns actual widget dimensions
+    override val sizeMode = SizeMode.Exact
 
     companion object {
         // Design spec colors
@@ -81,6 +87,19 @@ class BigButtonWidget : GlanceAppWidget() {
         val buttonColor = if (isDone) ButtonDoneColor else ButtonDoColor
         val buttonText = if (isDone) "Done!" else "Do"
 
+        // Get widget size and calculate scale factor
+        val size = LocalSize.current
+        val minDimension = min(size.width.value, size.height.value)
+        // Base design assumes ~70dp minimum dimension for scale 1.0
+        val scale = (minDimension / 70f).coerceIn(0.6f, 1.5f)
+
+        // Scaled dimensions
+        val borderSize = (60 * scale).dp
+        val buttonSize = (52 * scale).dp
+        val fontSize = (15 * scale).sp
+        val iconSize = (16 * scale).dp
+        val iconPadding = (8 * scale).dp
+
         // Main widget container (1x1 size)
         Box(
             modifier = GlanceModifier
@@ -91,8 +110,8 @@ class BigButtonWidget : GlanceAppWidget() {
             // White border ring (slightly larger circle behind the button)
             Box(
                 modifier = GlanceModifier
-                    .size(60.dp)
-                    .cornerRadius(30.dp)
+                    .size(borderSize)
+                    .cornerRadius(borderSize / 2)
                     .background(ButtonBorderColor)
                     .clickable(onClick = actionRunCallback<MarkDoneAction>()),
                 contentAlignment = Alignment.Center
@@ -101,7 +120,7 @@ class BigButtonWidget : GlanceAppWidget() {
                 val buttonDrawable = if (isDone) R.drawable.button_done_gradient else R.drawable.button_do_gradient
                 Box(
                     modifier = GlanceModifier
-                        .size(52.dp)
+                        .size(buttonSize)
                         .background(ImageProvider(buttonDrawable)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -109,7 +128,7 @@ class BigButtonWidget : GlanceAppWidget() {
                         text = buttonText,
                         style = TextStyle(
                             color = ColorProvider(ButtonTextColor),
-                            fontSize = 18.sp,
+                            fontSize = fontSize,
                             fontWeight = FontWeight.Bold
                         )
                     )
@@ -120,14 +139,14 @@ class BigButtonWidget : GlanceAppWidget() {
             Box(
                 modifier = GlanceModifier
                     .fillMaxSize()
-                    .padding(8.dp),
+                    .padding(iconPadding),
                 contentAlignment = Alignment.BottomEnd
             ) {
                 Image(
                     provider = ImageProvider(R.drawable.ic_settings),
                     contentDescription = "Settings",
                     modifier = GlanceModifier
-                        .size(16.dp)
+                        .size(iconSize)
                         .clickable(onClick = actionRunCallback<OpenSettingsAction>())
                 )
             }
