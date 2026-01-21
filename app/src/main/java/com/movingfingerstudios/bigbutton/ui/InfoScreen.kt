@@ -45,7 +45,7 @@ fun InfoScreen() {
         // Get version from package info
         val versionName = try {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             "1.0"
         }
 

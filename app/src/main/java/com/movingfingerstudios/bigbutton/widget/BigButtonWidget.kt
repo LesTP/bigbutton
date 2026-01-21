@@ -21,7 +21,6 @@ import androidx.glance.currentState
 import androidx.glance.LocalSize
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
-import androidx.glance.layout.ContentScale
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
@@ -44,11 +43,8 @@ class BigButtonWidget : GlanceAppWidget() {
     companion object {
         // Design spec colors
         val BackgroundColor = Color(0xFFD4C5A9)      // Warm beige/tan
-        val ButtonDoColor = Color(0xFFE57373)         // Soft red
-        val ButtonDoneColor = Color(0xFF81C784)       // Soft green
         val ButtonBorderColor = Color.White           // White border
         val ButtonTextColor = Color.White             // White text
-        val SettingsIconColor = Color(0xFF8B7355)     // Muted brown
     }
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -70,7 +66,7 @@ class BigButtonWidget : GlanceAppWidget() {
                         ?: BigButtonStateDefinition.DEFAULT_RESET_MINUTE
 
                     !ResetCalculator.shouldReset(lastChanged, periodDays, resetHour, resetMinute)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // If calculation fails, show as Done (safer default when storedIsDone=true)
                     true
                 }

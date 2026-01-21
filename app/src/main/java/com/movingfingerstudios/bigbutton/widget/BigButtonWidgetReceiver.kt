@@ -14,7 +14,7 @@ class BigButtonWidgetReceiver : GlanceAppWidgetReceiver() {
         // Wrapped in try-catch to prevent widget initialization failure
         try {
             ResetAlarmScheduler.scheduleImmediateCheck(context)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Alarm scheduling failed (likely permission issue on Android 12+)
             // Widget will still work, just without automatic resets until permission granted
         }
@@ -25,7 +25,7 @@ class BigButtonWidgetReceiver : GlanceAppWidgetReceiver() {
         // Cancel scheduled alarms when last widget is removed
         try {
             ResetAlarmScheduler.cancelScheduledReset(context)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Ignore errors during cleanup
         }
     }

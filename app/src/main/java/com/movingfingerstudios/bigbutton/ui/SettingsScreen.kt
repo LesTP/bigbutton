@@ -66,6 +66,7 @@ import com.movingfingerstudios.bigbutton.widget.dataStore
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import java.util.Locale
 
 // Period presets
 private enum class PeriodPreset(val days: Int, val label: String) {
@@ -145,7 +146,7 @@ private fun PermissionWarningBanner(onOpenSettings: () -> Unit) {
  */
 private fun formatTime(hour: Int, minute: Int, use24HourFormat: Boolean): String {
     return if (use24HourFormat) {
-        String.format("%02d:%02d", hour, minute)
+        String.format(Locale.US, "%02d:%02d", hour, minute)
     } else {
         val displayHour = when {
             hour == 0 -> 12
@@ -153,7 +154,7 @@ private fun formatTime(hour: Int, minute: Int, use24HourFormat: Boolean): String
             else -> hour
         }
         val amPm = if (hour < 12) "AM" else "PM"
-        String.format("%d:%02d %s", displayHour, minute, amPm)
+        String.format(Locale.US, "%d:%02d %s", displayHour, minute, amPm)
     }
 }
 
