@@ -736,7 +736,7 @@ CalendarScreen
 - Base size assumption: 70.dp minimum dimension for scale factor 1.0
 - Scale factor clamped between 0.6 and 1.5 to prevent extreme scaling
 - Apply scale to: button size (52.dp), border size (60.dp), font size (15.sp base), settings icon (16.dp), icon padding (8.dp)
-- Reduced base font from 18.sp to 15.sp to better fit within button on high-density small screens
+- Reduced base font from 18.sp to 14.sp to better fit within button on high-density small screens
 
 **Files Modified:**
 - `widget/BigButtonWidget.kt` - Added SizeMode.Exact, LocalSize-based responsive sizing, reduced base font

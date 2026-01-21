@@ -42,7 +42,7 @@
             android:name=".receiver.ResetAlarmReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.example.bigbutton.ACTION_RESET_CHECK" />
+                <action android:name="com.movingfingerstudios.bigbutton.ACTION_RESET_CHECK" />
             </intent-filter>
         </receiver>
 

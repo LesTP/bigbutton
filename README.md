@@ -12,7 +12,8 @@ A simple habit tracking Android widget. Track whether you've done something toda
 ## Current Status
 
 - **Phase:** Release Ready (v1.0)
-- **Focus:** All core features complete
+- **Package:** `com.movingfingerstudios.bigbutton`
+- **Focus:** All core features complete, ready for Google Play
 - **What works:** Full widget functionality, auto-reset, Room database with history tracking, calendar view with day coloring, user documentation, responsive UI for small screens
 - **Blocked/Broken:** None
 
@@ -37,9 +38,24 @@ A simple habit tracking Android widget. Track whether you've done something toda
 # Debug build
 ./gradlew assembleDebug
 
-# Release build
+# Release build (APK)
 ./gradlew assembleRelease
+
+# Release bundle (for Google Play)
+./gradlew bundleRelease
+# Output: app/build/outputs/bundle/release/app-release.aab
 ```
+
+### Release Signing Setup
+
+1. Generate a keystore (if you don't have one):
+   ```bash
+   keytool -genkey -v -keystore bigbutton-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias bigbutton
+   ```
+
+2. Copy `keystore.properties.template` to `keystore.properties` and fill in your credentials
+
+3. Build the release bundle with `./gradlew bundleRelease`
 
 ## Running Tests
 
@@ -59,7 +75,7 @@ A simple habit tracking Android widget. Track whether you've done something toda
 ```
 bigbutton/
 ├── app/src/main/
-│   ├── java/com/example/bigbutton/
+│   ├── java/com/movingfingerstudios/bigbutton/
 │   │   ├── MainActivity.kt
 │   │   ├── data/
 │   │   │   ├── BigButtonDatabase.kt
@@ -73,6 +89,7 @@ bigbutton/
 │   │   └── widget/
 │   └── res/
 ├── build.gradle.kts
+├── keystore.properties.template
 └── settings.gradle.kts
 ```
 

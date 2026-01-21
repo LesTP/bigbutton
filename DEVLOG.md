@@ -954,6 +954,144 @@ val iconPadding = (8 * scale).dp
 
 ---
 
+### Phase 5h (continued): Custom Field Width Adjustment
+**Date:** 2026-01-20
+
+**Problem:** On additional testing, the custom period TextField placeholder "1-90" was still wrapping inside the field on some devices.
+
+**Solution:** Increased max width from 72.dp to 88.dp to accommodate the placeholder text on all screen densities.
+
+**Files Modified:**
+- `ui/SettingsScreen.kt` - Changed `widthIn(min = 56.dp, max = 88.dp)`
+
+---
+
+### Phase 5i (continued): Widget Font Size Fine-tuning
+**Date:** 2026-01-20
+
+**Problem:** After initial fix with 15sp base font, "Done!" text still didn't fit on high-density phone screens.
+
+**Solution:** Further reduced base font from 15sp to 14sp after testing showed 12sp was too small but 15sp was still too large on some devices.
+
+**Files Modified:**
+- `widget/BigButtonWidget.kt` - Changed base font to 14sp
+
+---
+
+### Widget Preview Image Fix
+**Date:** 2026-01-20
+
+**Problem:** Widget picker showed "Loading..." text instead of actual widget preview when browsing widgets to add.
+
+**Root Cause:** `android:previewLayout` in widget info XML was pointing to `widget_loading.xml` which displays loading text.
+
+**Solution:** Created a static preview layout that shows the widget in "Do" state:
+- `res/layout/widget_preview.xml` - FrameLayout with button appearance
+- `res/drawable/preview_button_border.xml` - White oval for border ring
+- `res/drawable/preview_button_do.xml` - Red gradient oval for button
+- Updated `big_button_widget_info.xml` to use new preview layout
+
+**Files Created:**
+- `res/layout/widget_preview.xml`
+- `res/drawable/preview_button_border.xml`
+- `res/drawable/preview_button_do.xml`
+
+**Files Modified:**
+- `res/xml/big_button_widget_info.xml` - Changed previewLayout reference
+
+---
+
+### Package Name Change for Google Play
+**Date:** 2026-01-20
+
+**Reason:** Google Play rejects apps with `com.example.*` package names. Changed to production package name.
+
+**Change:** `com.example.bigbutton` → `com.movingfingerstudios.bigbutton`
+
+**Files Modified:**
+- `app/build.gradle.kts` - Updated namespace and applicationId
+- `AndroidManifest.xml` - Updated action name for ResetAlarmReceiver
+- All 22 Kotlin files - Updated package declarations and imports
+- Directory structure - Moved from `com/example/bigbutton` to `com/movingfingerstudios/bigbutton`
+
+**Important:** After package name change, the old app must be uninstalled before installing the new version (Android treats it as a different app).
+
+---
+
+### Release Signing Configuration
+**Date:** 2026-01-20
+
+**Purpose:** Configure app signing for Google Play release.
+
+**Implementation:**
+- Created `keystore.properties.template` with placeholder values
+- Added signing config to `app/build.gradle.kts` that reads from `keystore.properties`
+- Updated `.gitignore` to exclude `keystore.properties` (contains passwords)
+
+**Files Created:**
+- `keystore.properties.template` - Template for credentials
+- `bigbutton-upload.jks` - Upload keystore (not in git)
+- `keystore.properties` - Actual credentials (not in git)
+
+**Files Modified:**
+- `app/build.gradle.kts` - Added signingConfigs and release signing
+- `.gitignore` - Added keystore.properties
+
+**Key Code (build.gradle.kts):**
+```kotlin
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
+}
+
+signingConfigs {
+    create("release") {
+        if (keystorePropertiesFile.exists()) {
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
+        }
+    }
+}
+```
+
+**Lesson:** Keep signing credentials in a separate properties file that's gitignored. Use a template file to document required properties.
+
+---
+
+### Code Cleanup: Unused Variables
+**Date:** 2026-01-20
+
+**Problem:** Build warnings about unused variables.
+
+**Warnings Fixed:**
+1. `ResetAlarmReceiver.kt:110` - Removed unused `trackingStartStr` variable (value only used for null check)
+2. `CalendarScreen.kt:236` - Removed unused `showMonthHeader` variable (dead code from earlier refactor)
+3. `BigButtonWidget.kt:87` - Removed unused `buttonColor` variable (replaced by drawable resources)
+
+**Files Modified:**
+- `receiver/ResetAlarmReceiver.kt`
+- `ui/CalendarScreen.kt`
+- `widget/BigButtonWidget.kt`
+
+---
+
+## Release Preparation Complete
+**Date:** 2026-01-20
+
+**Release Bundle Location:** `app/build/outputs/bundle/release/app-release.aab`
+
+**Ready for Google Play submission with:**
+- Production package name: `com.movingfingerstudios.bigbutton`
+- Version: 1.0 (versionCode: 1)
+- Signed release bundle
+- All warnings resolved
+- Responsive UI tested on multiple screen sizes
+
+---
+
 ## Testing Checklist
 
 For each increment:
@@ -965,4 +1103,4 @@ For each increment:
 
 ---
 
-Last Updated: 2026-01-19 (Phase 5h, 5i complete - Small screen fixes for Settings and Widget)
+Last Updated: 2026-01-20 (Release preparation complete - Package rename, signing, Play Store ready)
