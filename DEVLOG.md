@@ -1092,6 +1092,62 @@ signingConfigs {
 
 ---
 
+### Default Reset Time Change
+**Date:** 2026-01-21
+
+**Change:** Default reset time changed from 4:00 AM to 11:59 PM.
+
+**Rationale:** 11:59 PM is more intuitive as an end-of-day deadline for daily habits.
+
+**Files Modified:**
+- `widget/BigButtonStateDefinition.kt` - Changed `DEFAULT_RESET_HOUR` from 4 to 23, `DEFAULT_RESET_MINUTE` from 0 to 59
+
+**Note:** Only affects new installs. Existing users keep their saved reset time.
+
+---
+
+### Java Version Upgrade
+**Date:** 2026-01-21
+
+**Change:** Upgraded Java target from 1.8 to 17.
+
+**Reason:** Java 21 (Android Studio's bundled JDK) deprecated compiling for Java 8 target, causing build warnings.
+
+**Files Modified:**
+- `app/build.gradle.kts` - Changed `sourceCompatibility`, `targetCompatibility`, and `jvmTarget` from 1.8 to 17
+
+---
+
+### Code Cleanup - Static Analysis Warnings
+**Date:** 2026-01-21
+
+**Purpose:** Clean up lint warnings and unused code for release quality.
+
+**Fixes Applied:**
+
+| File | Issue | Fix |
+|------|-------|-----|
+| BigButtonWidget.kt | Unused import `ContentScale` | Removed |
+| BigButtonWidget.kt | Unused properties (ButtonDoColor, ButtonDoneColor, SettingsIconColor) | Removed |
+| BigButtonWidget.kt | Unused exception parameter | Changed `e` to `_` |
+| BigButtonWidgetReceiver.kt | Unused exception parameters (x2) | Changed `e` to `_` |
+| InfoScreen.kt | Unused exception parameter | Changed `e` to `_` |
+| SettingsScreen.kt | String.format without Locale | Added `Locale.US` |
+
+**Warnings Intentionally Ignored:**
+- ColorProvider lint error - False positive, code compiles and works
+- Compose state assignment warnings - False positives, state triggers recomposition
+- API level warnings for widget attributes - Gracefully ignored on older devices
+- Newer dependency versions available - Current versions stable and working
+
+**Files Modified:**
+- `widget/BigButtonWidget.kt`
+- `widget/BigButtonWidgetReceiver.kt`
+- `ui/InfoScreen.kt`
+- `ui/SettingsScreen.kt`
+
+---
+
 ## Testing Checklist
 
 For each increment:
@@ -1103,4 +1159,4 @@ For each increment:
 
 ---
 
-Last Updated: 2026-01-20 (Release preparation complete - Package rename, signing, Play Store ready)
+Last Updated: 2026-01-21 (Final cleanup - Default reset time, Java 17, lint fixes)

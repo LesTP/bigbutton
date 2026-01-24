@@ -141,7 +141,7 @@ User-configurable reset periods. Broken into sub-phases for incremental delivery
 |----|-------------|
 | P3c.1 | Settings shows reset time selector |
 | P3c.2 | Time picker allows selecting hour (and optionally minute) |
-| P3c.3 | Default reset time is 4:00 AM |
+| P3c.3 | Default reset time is 11:59 PM |
 | P3c.4 | Reset time persists across app restarts |
 | P3c.5 | Display shows selected time in 12h or 24h format (follow system) |
 
