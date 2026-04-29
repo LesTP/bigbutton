@@ -24,8 +24,9 @@ function createButtonSvg(size, options = {}) {
   const contentOffset = (size - contentSize) / 2;
 
   // Ring and button sizes relative to content area
-  const ringOuterR = contentSize * 0.47;
-  const ringBorderW = contentSize * 0.04;
+  // For foreground layers: white fills entire canvas, no transparent gaps
+  const ringOuterR = includeBackground ? contentSize * 0.47 : size * 0.5;
+  const ringBorderW = ringOuterR * 0.13; // ~13% of ring = matches widget proportions
   const buttonR = ringOuterR - ringBorderW;
 
   // Text size relative to content
