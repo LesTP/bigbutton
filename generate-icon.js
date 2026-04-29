@@ -30,7 +30,7 @@ function createButtonSvg(size, options = {}) {
   // NOT relative to the white ring. This ensures the green circle stays
   // within the adaptive icon mask (~33% of canvas) while the white ring
   // extends beyond it.
-  const buttonR = contentSize * 0.37;
+  const buttonR = contentSize * 0.42;
 
   // Text size relative to button
   const fontSize = buttonR * 0.48;
