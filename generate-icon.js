@@ -30,7 +30,7 @@ function createButtonSvg(size, options = {}) {
   const buttonR = ringOuterR - ringBorderW;
 
   // Text size relative to content
-  const fontSize = contentSize * 0.145;
+  const fontSize = contentSize * 0.17;
 
   // Gradient ID unique per call
   const gradId = 'greenGrad';
@@ -99,29 +99,6 @@ async function generateIcons() {
       .png()
       .toFile(outPath);
     console.log(`  ${density}: ${outPath} (${size}x${size})`);
-
-    // Also generate a legacy round icon (full icon with background baked in)
-    const legacySvg = createButtonSvg(size * 48 / 108, { includeBackground: true });
-    const legacySize = Math.round(size * 48 / 108); // standard icon sizes
-
-    const legacyPath = path.join(dir, 'ic_launcher.png');
-    await sharp(Buffer.from(legacySvg))
-      .resize(legacySize, legacySize)
-      .png()
-      .toFile(legacyPath);
-
-    const legacyRoundPath = path.join(dir, 'ic_launcher_round.png');
-    // For round icon, create circular mask
-    const roundMask = Buffer.from(
-      `<svg width="${legacySize}" height="${legacySize}"><circle cx="${legacySize/2}" cy="${legacySize/2}" r="${legacySize/2}" fill="white"/></svg>`
-    );
-    await sharp(Buffer.from(legacySvg))
-      .resize(legacySize, legacySize)
-      .composite([{ input: await sharp(roundMask).resize(legacySize, legacySize).toBuffer(), blend: 'dest-in' }])
-      .png()
-      .toFile(legacyRoundPath);
-
-    console.log(`  ${density}: legacy ${legacySize}x${legacySize}`);
   }
 
   console.log('\nDone! Icon generation complete.');
