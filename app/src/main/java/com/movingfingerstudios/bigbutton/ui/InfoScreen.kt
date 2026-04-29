@@ -71,7 +71,7 @@ fun InfoScreen() {
 
         InstructionItem(
             title = "Configure",
-            text = "Before you start using the app, go to the Settings tab. Set how often you'd like to perform the action (Daily, Weekly, Monthly, or Custom), and what time it resets (default 4:00 AM)."
+            text = "Before you start using the app, go to the Settings tab. Set how often you'd like to perform the action (Daily, Weekly, Monthly, or Custom), and what time it resets (default 11:59 PM)."
         )
 
         InstructionItem(
@@ -116,7 +116,7 @@ fun InfoScreen() {
         BulletPoint("All days in the period show the same final color (green or red)")
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Example: A weekly task due by Sunday 4 AM - press Done anytime Mon-Sat, and all 7 days turn green at the reset date/time.",
+            text = "Example: A weekly task due by Sunday 11:59 PM - press Done anytime Mon-Sat, and all 7 days turn green at the reset date/time.",
             fontSize = 14.sp,
             fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
