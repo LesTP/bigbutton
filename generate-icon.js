@@ -21,16 +21,19 @@ function createButtonSvg(size, options = {}) {
 
   // Content area (safe zone)
   const contentSize = size * safeZoneRatio;
-  const contentOffset = (size - contentSize) / 2;
 
-  // Ring and button sizes relative to content area
-  // For foreground layers: white fills entire canvas, no transparent gaps
+  // White ring: fills entire canvas for foreground (no transparent gaps),
+  // proportional to content for play store icon
   const ringOuterR = includeBackground ? contentSize * 0.47 : size * 0.5;
-  const ringBorderW = ringOuterR * 0.13; // ~13% of ring = matches widget proportions
-  const buttonR = ringOuterR - ringBorderW;
 
-  // Text size relative to content
-  const fontSize = contentSize * 0.17;
+  // Green button: ALWAYS sized relative to safe zone content area,
+  // NOT relative to the white ring. This ensures the green circle stays
+  // within the adaptive icon mask (~33% of canvas) while the white ring
+  // extends beyond it.
+  const buttonR = contentSize * 0.37;
+
+  // Text size relative to button
+  const fontSize = buttonR * 0.48;
 
   // Gradient ID unique per call
   const gradId = 'greenGrad';
@@ -88,7 +91,7 @@ async function generateIcons() {
   for (const [density, size] of Object.entries(densities)) {
     const foregroundSvg = createButtonSvg(size, {
       includeBackground: false,
-      safeZoneRatio: 0.95, // Fill most of canvas so ring covers circular mask
+      safeZoneRatio: 0.667, // 72/108 safe zone - green button fits within mask
     });
 
     const dir = path.join(resDir, `mipmap-${density}`);
