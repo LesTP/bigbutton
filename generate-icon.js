@@ -24,8 +24,8 @@ function createButtonSvg(size, options = {}) {
   const contentOffset = (size - contentSize) / 2;
 
   // Ring and button sizes relative to content area
-  const ringOuterR = contentSize * 0.42;
-  const ringBorderW = contentSize * 0.035;
+  const ringOuterR = contentSize * 0.47;
+  const ringBorderW = contentSize * 0.04;
   const buttonR = ringOuterR - ringBorderW;
 
   // Text size relative to content
@@ -72,7 +72,8 @@ async function generateIcons() {
   console.log(`Play Store icon: ${playStorePath} (${(fs.statSync(playStorePath).size / 1024).toFixed(1)} KB)`);
 
   // --- Adaptive Icon Foreground PNGs ---
-  // Foreground layer is 108dp, content safe zone is 72dp (66.67%)
+  // Foreground layer is 108dp. Use ~95% of canvas so the white ring
+  // extends beyond the circular mask edge (no green/beige peeking through)
   const densities = {
     'mdpi':    108,
     'hdpi':    162,
@@ -86,7 +87,7 @@ async function generateIcons() {
   for (const [density, size] of Object.entries(densities)) {
     const foregroundSvg = createButtonSvg(size, {
       includeBackground: false,
-      safeZoneRatio: 0.667, // 72/108 safe zone
+      safeZoneRatio: 0.95, // Fill most of canvas so ring covers circular mask
     });
 
     const dir = path.join(resDir, `mipmap-${density}`);
